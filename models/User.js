@@ -2,12 +2,17 @@ const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema(
   {
-    username: {
+    name: {
       type: String,
       required: true,
       min: 3,
-      max: 20,
-      unique: true,
+      max: 15,
+    },
+    surname: {
+      type: String,
+      required: true,
+      min: 3,
+      max: 15,
     },
     email: {
       type: String,
@@ -24,25 +29,21 @@ const UserSchema = new mongoose.Schema(
       type: String,
       min: 13,
       max: 13,
-      unique: true,
     },
     driverLicense: {
       type: String,
       min: 9,
       max: 9,
-      unique: true,
     },
     phone: {
       type: String,
       min: 9,
       max: 11,
-      unique: true,
     },
     address: {
       type: String,
       min: 10,
       max: 50,
-      unique: true,
     },
     city: {
       type: String,
@@ -51,6 +52,10 @@ const UserSchema = new mongoose.Schema(
     likedPosts: {
       type: Array,
       default: [],
+    },
+    profileImage: {
+      type: String,
+      default: "",
     },
     desc: {
       type: String,

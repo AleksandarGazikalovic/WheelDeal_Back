@@ -6,16 +6,12 @@ const PostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    desc: {
-      type: String,
-      max: 50,
-    },
-    img: {
-      type: String,
+    images: {
+      type: Array,
       required: true,
     },
-    price: {
-      type: Number,
+    brand: {
+      type: String,
       required: true,
     },
     model: {
@@ -26,16 +22,48 @@ const PostSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    casco: {
-      type: Boolean,
+    desc: {
+      type: String,
+      max: 50,
+    },
+    mileage: {
+      type: Number,
+      required: true,
+    },
+    transmission: {
+      type: String,
+      required: true,
+    },
+    fuel: {
+      type: String,
+      required: true,
+    },
+    drive: {
+      type: String,
+      required: true,
+    },
+    engine: {
+      type: String,
+      required: true,
+    },
+    location: {
+      type: String,
+      required: true,
+    },
+    price: {
+      type: Number,
       required: true,
     },
     from: {
-      type: String,
+      type: Date,
       required: true,
     },
     to: {
-      type: String,
+      type: Date,
+      required: true,
+    },
+    casco: {
+      type: Boolean,
       required: true,
     },
     isRented: {
