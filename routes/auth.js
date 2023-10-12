@@ -73,16 +73,18 @@ router.post("/login", async (req, res) => {
 
     const profileImage = user.profileImage;
 
-    const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: profileImage,
-    });
+    if (profileImage !== "") {
+      const command = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: profileImage,
+      });
 
-    const signedUrl = await getSignedUrl(s3, command, {
-      expiresIn: 3600,
-    });
+      const signedUrl = await getSignedUrl(s3, command, {
+        expiresIn: 3600,
+      });
 
-    user.profileImage = signedUrl;
+      user.profileImage = signedUrl;
+    }
 
     // send response
     res.status(200).json(user);

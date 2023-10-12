@@ -114,16 +114,20 @@ router.put("/:id/like", async (req, res) => {
     const user = await User.findById(req.body.userId);
     if (!user.likedPosts.includes(post._id)) {
       try {
-        await user.updateOne({ $push: { likedPosts: post._id } });
-        res.status(200).json("The post has been liked");
+        await user.updateOne({ $push: { likedPosts: post._id.toString() } });
+        console.log(user);
+        res.status(200).json(user.likedPosts);
+        console.log(user);
       } catch (err) {
         res.status(500).json(err);
         console.log(err);
       }
     } else {
       try {
-        await user.updateOne({ $pull: { likedPosts: post._id } });
-        res.status(200).json("The post has been disliked");
+        await user.updateOne({ $pull: { likedPosts: post._id.toString() } });
+        console.log(user);
+        res.status(200).json(user.likedPosts);
+        console.log(user);
       } catch (err) {
         res.status(500).json(err);
         console.log(err);

@@ -6,6 +6,7 @@ const {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const dotenv = require("dotenv");
@@ -32,21 +33,16 @@ const s3 = new S3Client({
 //update user
 router.put("/:id", async (req, res) => {
   console.log(req.body);
-  if (req.body.userId === req.params.id || req.body.isAdmin) {
-    if (req.body.password) {
-      try {
-        const salt = await bcrypt.genSalt(10);
-        req.body.password = await bcrypt.hash(req.body.password, salt);
-      } catch (err) {
-        console.log(err);
-        return res.status(500).json(err);
-      }
-    }
+  if (req.body._id === req.params.id || req.body.isAdmin) {
+    delete req.body.profileImage;
     try {
-      const user = await User.findByIdAndUpdate(req.params.id, {
-        $set: req.body,
-      });
-      res.status(200).json("Account has been updated");
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { $set: req.body },
+        { new: true }
+      );
+      const { password, updatedAt, profileImage, ...other } = user._doc;
+      res.status(200).json(other);
     } catch (err) {
       return res.status(500).json(err);
     }
@@ -116,14 +112,33 @@ router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
 
       s3.send(command);
 
+      let user = await User.findById(req.params.id);
+      const oldProfileImage = user.profileImage;
+      if (oldProfileImage !== "") {
+        const deleteCommand = new DeleteObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: oldProfileImage,
+        });
+        s3.send(deleteCommand);
+      }
       // Update only the profileImage field in the user object
-      const user = await User.findByIdAndUpdate(
+      user = await User.findByIdAndUpdate(
         req.params.id,
         { profileImage: fileName },
         { new: true } // This option returns the updated document
       );
 
-      res.status(200).json({ message: "Profile image has been updated", user });
+      if (user.profileImage !== "") {
+        const command = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: user.profileImage,
+        });
+
+        const signedUrl = await getSignedUrl(s3, command, {
+          expiresIn: 3600,
+        });
+        res.status(200).json(signedUrl);
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json(err);
