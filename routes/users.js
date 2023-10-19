@@ -11,6 +11,7 @@ const {
 const multer = require("multer");
 const dotenv = require("dotenv");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 dotenv.config();
 
@@ -29,6 +30,21 @@ const s3 = new S3Client({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
+
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization.split(" ")[1];
+  if (!token) {
+    return res.status(403).json({ message: "No token provided" });
+  }
+  jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 //update user
 router.put("/:id", async (req, res) => {
@@ -62,6 +78,31 @@ router.delete("/:id", async (req, res) => {
     }
   } else {
     return res.status(403).json("You can delete only your account!");
+  }
+});
+
+router.get("/", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const { password, updatedAt, ...other } = user._doc;
+    const profileImage = other.profileImage;
+
+    if (profileImage !== "") {
+      const command = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: profileImage,
+      });
+
+      const signedUrl = await getSignedUrl(s3, command, {
+        expiresIn: 3600,
+      });
+
+      other.profileImage = signedUrl;
+    }
+    res.status(200).json(other);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json(err);
   }
 });
 
