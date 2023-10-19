@@ -5,6 +5,7 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const dotenv = require("dotenv");
+const jwt = require("jsonwebtoken");
 
 dotenv.config();
 
@@ -53,7 +54,6 @@ router.post("/register", async (req, res) => {
 
 //Login
 router.post("/login", async (req, res) => {
-  console.log(req.body);
   try {
     // find user
     const user = await User.findOne({ email: req.body.email });
@@ -86,8 +86,25 @@ router.post("/login", async (req, res) => {
       user.profileImage = signedUrl;
     }
 
+    const accessToken = jwt.sign(
+      { id: user.id },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "30m",
+      }
+    );
+    const refreshToken = jwt.sign(
+      { id: user.id },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: "30d",
+      }
+    );
+
+    console.log(user);
+
     // send response
-    res.status(200).json(user);
+    res.status(200).json({ user, accessToken, refreshToken });
   } catch (err) {
     console.log(err);
     res.status(500).json(err);
