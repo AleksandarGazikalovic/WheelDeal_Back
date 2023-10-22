@@ -143,6 +143,17 @@ router.put("/:id/like", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
+    const updatedImages = [];
+    for (let i = 0; i < post.images.length; i++) {
+      const getObjectParams = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: post.images[i],
+      };
+      const command = new GetObjectCommand(getObjectParams);
+      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+      updatedImages.push(url);
+    }
+    post.images = updatedImages;
     res.status(200).json(post);
   } catch (err) {
     res.status(500).json(err);
@@ -247,7 +258,7 @@ router.get("/filter/all", async (req, res) => {
       });
     }
 
-    // Step 4: Location and Model Filters
+    // Step 4: Location and Brand Filters
     if (req.query.location !== "" && req.query.location !== "undefined") {
       console.log("location");
       filters.push({
@@ -257,11 +268,11 @@ router.get("/filter/all", async (req, res) => {
       });
     }
 
-    if (req.query.model !== "" && req.query.model !== "undefined") {
-      console.log("model");
+    if (req.query.brand !== "" && req.query.brand !== "undefined") {
+      console.log("brand");
       filters.push({
         $match: {
-          model: { $regex: req.query.model, $options: "i" },
+          brand: { $regex: req.query.brand, $options: "i" },
         },
       });
     }

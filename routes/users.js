@@ -12,6 +12,7 @@ const multer = require("multer");
 const dotenv = require("dotenv");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const sharp = require("sharp");
 
 dotenv.config();
 
@@ -143,11 +144,16 @@ router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
       const fileType = file.mimetype;
       const fileContent = file.buffer;
 
+      // Resize and compress the image
+      const resizedImageBuffer = await sharp(fileContent)
+        .resize({ width: 200, height: 200 }) // Adjust the dimensions as needed
+        .toBuffer();
+
       // Upload the new profile image to your storage (e.g., S3)
       const command = new PutObjectCommand({
         Bucket: process.env.S3_BUCKET_NAME,
         Key: fileName,
-        Body: fileContent,
+        Body: resizedImageBuffer,
         ContentType: fileType,
       });
 
