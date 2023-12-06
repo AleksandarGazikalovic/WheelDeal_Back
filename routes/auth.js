@@ -6,6 +6,9 @@ const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
+const logoPath = "/images/logo.png";
 
 dotenv.config();
 
@@ -133,5 +136,138 @@ router.put("/:id/verify", async (req, res) => {
     return res.status(403).json("You can verify only your account!");
   }
 });
+
+// Configure nodemailer for sending emails
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "gazikalovicaleksandar@gmail.com",
+    pass: "xjxa adik reyk qgck",
+  },
+});
+
+// Route for initiating the forgot password process
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find the user with the given email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Generate a reset token
+    const resetToken = crypto.randomBytes(20).toString("hex");
+
+    // Save the reset token and its expiration time to the user in the database
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // Token expires in 1 hour
+    await user.save();
+
+    // Send an email to the user with the reset link
+    const resetLink = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
+    const mailOptions = {
+      from: "gazikalovicaleksandar@gmail.com",
+      to: user.email,
+      subject: "Password Reset Request",
+      html: getPasswordResetEmail(user.name, resetLink),
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: "Password reset email sent successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Route for resetting the password using the token
+router.post("/reset-password/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    // Find the user with the given reset token
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }, // Check if the token is still valid
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    // Update the user's password and clear the reset token fields
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Function to generate HTML email content with logo
+function getPasswordResetEmail(username, resetLink) {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f4;
+        }
+        .container {
+          max-width: 600px;
+          margin: 20px auto;
+          background-color: #ffffff;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .logo {
+          text-align: center;
+        }
+        .logo img {
+          max-width: 100px;
+          height: auto;
+        }
+        .content {
+          margin-top: 20px;
+          text-align: left;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">
+          <img src="${logoPath}" alt="WheelDeal">
+        </div>
+        <div class="content">
+          <h2>Password Reset Request</h2>
+          <p>Hello ${username},</p>
+          <p>We received a request to reset your password. To reset your password, click on the link below:</p>
+          <p><a href="${resetLink}">Reset Your Password</a></p>
+          <p>If you didn't request a password reset, please ignore this email.</p>
+          <p>This link will expire in 1 hour for security reasons.</p>
+          <p>Thank you,<br>WheelDeal</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 module.exports = router;
