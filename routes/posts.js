@@ -222,36 +222,59 @@ router.get("/filter/all", async (req, res) => {
   try {
     // Create an array to store filter conditions
     const filters = [];
-    console.log(req.query);
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 12;
 
-    // Step 2: Date Filters
+    // Step 2: Start Date Filters
     if (
+      req.query.startDate &&
       req.query.startDate !== "" &&
-      req.query.endDate !== "" &&
-      req.query.startDate !== "undefined" &&
-      req.query.endDate !== "undefined"
+      req.query.startDate !== "undefined"
     ) {
-      console.log("date");
       filters.push({
         $match: {
           from: { $gte: new Date(req.query.startDate) },
+        },
+      });
+    }
+
+    // Step 3: End Date Filters
+    if (
+      req.query.endDate &&
+      req.query.endDate !== "" &&
+      req.query.endDate !== "undefined"
+    ) {
+      filters.push({
+        $match: {
           to: { $lte: new Date(req.query.endDate) },
         },
       });
     }
 
-    // Step 3: Price Filters
+    // Step 4: Start Price Filters
     if (
+      req.query.startPrice &&
       req.query.startPrice !== "" &&
-      req.query.endPrice !== "" &&
-      req.query.startPrice !== "undefined" &&
-      req.query.endPrice !== "undefined"
+      req.query.startPrice !== "undefined"
     ) {
-      console.log("price");
       filters.push({
         $match: {
           price: {
             $gte: parseFloat(req.query.startPrice),
+          },
+        },
+      });
+    }
+
+    // Step 5: End Price Filters
+    if (
+      req.query.endPrice &&
+      req.query.endPrice !== "" &&
+      req.query.endPrice !== "undefined"
+    ) {
+      filters.push({
+        $match: {
+          price: {
             $lte: parseFloat(req.query.endPrice),
           },
         },
@@ -259,8 +282,11 @@ router.get("/filter/all", async (req, res) => {
     }
 
     // Step 4: Location and Brand Filters
-    if (req.query.location !== "" && req.query.location !== "undefined") {
-      console.log("location");
+    if (
+      req.query.location &&
+      req.query.location !== "" &&
+      req.query.location !== "undefined"
+    ) {
       filters.push({
         $match: {
           location: { $regex: req.query.location, $options: "i" },
@@ -268,8 +294,11 @@ router.get("/filter/all", async (req, res) => {
       });
     }
 
-    if (req.query.brand !== "" && req.query.brand !== "undefined") {
-      console.log("brand");
+    if (
+      req.query.brand &&
+      req.query.brand !== "" &&
+      req.query.brand !== "undefined"
+    ) {
       filters.push({
         $match: {
           brand: { $regex: req.query.brand, $options: "i" },
@@ -279,7 +308,13 @@ router.get("/filter/all", async (req, res) => {
     //if there are filters, aggregate the posts
     if (filters.length > 0) {
       const aggregationPipeline = filters;
-      const posts = await Post.aggregate(aggregationPipeline);
+      const totalFilteredPosts = await Post.countDocuments({
+        $and: aggregationPipeline.map((filter) => filter.$match),
+      });
+
+      const posts = await Post.aggregate(aggregationPipeline)
+        .skip((page - 1) * limit)
+        .limit(limit);
 
       const imagePromises = posts.map(async (post) => {
         const updatedImages = [];
@@ -297,10 +332,17 @@ router.get("/filter/all", async (req, res) => {
         return post;
       });
       const updatedPosts = await Promise.all(imagePromises);
-      res.status(200).json(updatedPosts);
+
+      const hasMore = page * limit < totalFilteredPosts;
+
+      res.status(200).json({ posts: updatedPosts, hasMore });
     } else {
       //if there are no filters, return all posts
-      const posts = await Post.find();
+      const totalPosts = await Post.countDocuments();
+
+      const posts = await Post.find()
+        .skip((page - 1) * limit)
+        .limit(limit);
 
       const imagePromises = posts.map(async (post) => {
         const updatedImages = [];
@@ -318,7 +360,10 @@ router.get("/filter/all", async (req, res) => {
         return post;
       });
       const updatedPosts = await Promise.all(imagePromises);
-      res.status(200).json(updatedPosts);
+
+      const hasMore = page * limit < totalPosts;
+
+      res.status(200).json({ posts: updatedPosts, hasMore });
     }
   } catch (err) {
     console.error(err);
