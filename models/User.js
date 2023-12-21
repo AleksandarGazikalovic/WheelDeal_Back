@@ -65,7 +65,15 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isVerified: {
+    verificationToken: {
+      type: String,
+      default: null,
+    },
+    isAccountVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isLicenceVerified: {
       type: Boolean,
       default: false,
     },

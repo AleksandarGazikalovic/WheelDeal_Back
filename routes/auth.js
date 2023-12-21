@@ -25,6 +25,15 @@ const s3 = new S3Client({
   },
 });
 
+// Configure nodemailer for sending emails
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "gazikalovicaleksandar@gmail.com",
+    pass: "xjxa adik reyk qgck",
+  },
+});
+
 //Register
 router.post("/register", async (req, res) => {
   try {
@@ -38,17 +47,25 @@ router.post("/register", async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-    // create new user
+    // create new user with a verification token
+    const verificationToken = crypto.randomBytes(20).toString("hex");
     const newUser = new User({
       name: req.body.name,
       surname: req.body.surname,
       email: req.body.email,
       password: hashedPassword,
+      verificationToken: verificationToken,
     });
 
-    // save user and respond
-    const user = await newUser.save();
-    res.status(200).json(user);
+    // save user
+    await newUser.save();
+
+    // send verification email
+    sendVerificationEmail(req.body.name, req.body.email, verificationToken);
+
+    res.status(200).json({
+      message: "Registration successful. Check your email for verification.",
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "An error occurred during registration." });
@@ -64,6 +81,15 @@ router.post("/login", async (req, res) => {
       return res.status(404).json("User not found");
     }
 
+    // Check if the user is verified
+    if (!user.isAccountVerified) {
+      return res
+        .status(403)
+        .json(
+          "Email not verified. Please check your email for the verification link."
+        );
+    }
+
     // compare password
     const validPassword = await bcrypt.compare(
       req.body.password,
@@ -71,7 +97,9 @@ router.post("/login", async (req, res) => {
     );
 
     if (!validPassword) {
-      return res.status(400).json("Wrong password");
+      return res
+        .status(400)
+        .json("Failed to log in! Please check your credentials.");
     }
 
     const profileImage = user.profileImage;
@@ -125,7 +153,7 @@ router.put("/:id/verify", async (req, res) => {
           phone: req.body.phone,
           address: req.body.address,
           city: req.body.city,
-          isVerified: true,
+          isLicenceVerified: true,
         },
       });
       res.status(200).json("Account has been verified");
@@ -135,15 +163,6 @@ router.put("/:id/verify", async (req, res) => {
   } else {
     return res.status(403).json("You can verify only your account!");
   }
-});
-
-// Configure nodemailer for sending emails
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "gazikalovicaleksandar@gmail.com",
-    pass: "xjxa adik reyk qgck",
-  },
 });
 
 // Route for initiating the forgot password process
@@ -214,6 +233,50 @@ router.post("/reset-password/:token", async (req, res) => {
   }
 });
 
+router.get("/verify/:token", async (req, res) => {
+  try {
+    const token = req.params.token;
+
+    // Find the user with the verification token
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      return res.status(404).json({ message: "Invalid verification token." });
+    }
+
+    // Mark the user as verified and remove the verification token
+    user.isAccountVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Email verified successfully." });
+  } catch (err) {
+    console.log(err);
+    res
+      .status(500)
+      .json({ message: "An error occurred during email verification." });
+  }
+});
+
+// Function to send verification email
+function sendVerificationEmail(name, email, token) {
+  const verificationLink = `${process.env.BASE_URL}/auth/verify/${token}`;
+  const mailOptions = {
+    from: "gazikalovicaleksandar@gmail.com",
+    to: email,
+    subject: "Welcome to WheelDeal - Verify Your Email Address",
+    html: getAccountVerificationEmail(name, verificationLink),
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent: " + info.response);
+    }
+  });
+}
+
 // Function to generate HTML email content with logo
 function getPasswordResetEmail(username, resetLink) {
   return `
@@ -262,6 +325,59 @@ function getPasswordResetEmail(username, resetLink) {
           <p><a href="${resetLink}">Reset Your Password</a></p>
           <p>If you didn't request a password reset, please ignore this email.</p>
           <p>This link will expire in 1 hour for security reasons.</p>
+          <p>Thank you,<br>WheelDeal</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// Function to generate HTML email content with logo
+function getAccountVerificationEmail(username, verificationLink) {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f4;
+        }
+        .container {
+          max-width: 600px;
+          margin: 20px auto;
+          background-color: #ffffff;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .logo {
+          text-align: center;
+        }
+        .logo img {
+          max-width: 100px;
+          height: auto;
+        }
+        .content {
+          margin-top: 20px;
+          text-align: left;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">
+          <img src="${logoPath}" alt="WheelDeal">
+        </div>
+        <div class="content">
+          <h2>Welcome to WheelDeal</h2>
+          <p>Hello ${username},</p>
+          <p>Thank you for registering on WheelDeal. To verify your email address, click on the link below:</p>
+          <p><a href="${verificationLink}">Verify Your Email Address</a></p>
           <p>Thank you,<br>WheelDeal</p>
         </div>
       </div>
