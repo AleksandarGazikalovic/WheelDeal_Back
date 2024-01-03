@@ -1,0 +1,44 @@
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set Up Docker
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Build and Push Docker Image
+        run: |
+          docker login --username ${{github.actor}} --password ${{secrets.GH_PAT}} ghcr.io
+          docker build -t ghcr.io/aleksandargazikalovic/wheel_deal_backend:latest -f Dockerfile.backend .
+          docker push ghcr.io/aleksandargazikalovic/wheel_deal_backend:latest
+
+      - name: Deploy to DigitalOcean Droplet
+        uses: appleboy/ssh-action@v1.0.2
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USERNAME }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          port: 22
+          script: |
+            docker login ghcr.io -u ${{ secrets.GH_USERNAME }} -p ${{ secrets.GH_PAT }}
+            docker pull ${{secrets.DOCKER_IMAGE}}
+
+            # Check if a container is already running on the specified port
+            EXISTING_CONTAINER=$(docker ps -q --filter "name=wheel-deal-backend" --filter "expose=8800")
+            if [ ! -z "$EXISTING_CONTAINER" ]; then
+              echo "Stopping and removing existing container..."
+              docker stop $EXISTING_CONTAINER
+              docker rm $EXISTING_CONTAINER
+            fi
+
+            CONTAINER_NAME="wheel-deal-backend-$(date +"%Y%m%d%H%M%S")"
+            docker run -d -p 8800:8800 --name $CONTAINER_NAME -v /etc/letsencrypt:/certs -v /root/env/.env:/app/.env ${{ secrets.DOCKER_IMAGE }}
