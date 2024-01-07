@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Location = require("../models/Location");
 
 const PostSchema = new mongoose.Schema(
   {
@@ -46,10 +47,7 @@ const PostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    location: {
-      type: String,
-      required: true,
-    },
+    location: Location,
     price: {
       type: Number,
       required: true,
@@ -60,10 +58,6 @@ const PostSchema = new mongoose.Schema(
     },
     to: {
       type: Date,
-      required: true,
-    },
-    casco: {
-      type: Boolean,
       required: true,
     },
     isRented: {

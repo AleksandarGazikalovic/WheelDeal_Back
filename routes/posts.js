@@ -31,8 +31,6 @@ const s3 = new S3Client({
 
 //create a post
 router.post("/", upload.array("images[]", 10), async (req, res) => {
-  console.log(req.body);
-  console.log(req.files);
   try {
     const imageKeys = [];
 
@@ -289,7 +287,7 @@ router.get("/filter/all", async (req, res) => {
     ) {
       filters.push({
         $match: {
-          location: { $regex: req.query.location, $options: "i" },
+          "location.address": { $regex: req.query.location, $options: "i" },
         },
       });
     }
