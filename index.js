@@ -12,6 +12,8 @@ const cors = require("cors");
 const path = require("path");
 const https = require("https");
 const fs = require("fs");
+const bodyParser = require('body-parser');
+const morganBody = require('morgan-body');
 
 dotenv.config();
 
@@ -24,7 +26,14 @@ mongoose.connect(process.env.MONGO_URL, {
 // Express App Configuration
 app.use(express.json());
 app.use(helmet());
-app.use(morgan("common"));
+// app.use(morgan("common"));
+
+// Create a write stream to a log file
+const logStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' });
+
+app.use(bodyParser.json());
+morganBody(app, { stream: logStream, noColors: true });
+
 
 app.use(
   cors({
