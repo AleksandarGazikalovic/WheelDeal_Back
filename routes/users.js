@@ -34,13 +34,18 @@ const s3 = new S3Client({
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
-  const token = req.headers.authorization.split(" ")[1];
-  if (!token) {
-    return res.status(403).json({ message: "No token provided" });
+  const authHeader = req.headers.authorization
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!authHeader || !token) {
+    return res.status(401).json({ message: "Unauthorized" });
   }
-  jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => { // add logic to detect if someone tampered with access token
     if (err) {
-      return res.status(401).json({ message: "Unauthorized" });
+      if (err.name == "TokenExpiredError") {
+        return res.status(401).json({ message: "Access token expired" });
+      } else {
+        return res.status(401).json({ message: "Unauthorized, token signature usuccessfuly verified" });
+      }
     }
     req.user = decoded;
     next();
