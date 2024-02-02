@@ -42,7 +42,6 @@ router.post("/register", async (req, res) => {
     if (existingUser) {
       return res.status(400).json("Email is already in use.");
     }
-    console.log(req.body);
     // generate new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
@@ -132,8 +131,6 @@ router.post("/login", async (req, res) => {
       }
     );
 
-    console.log(user);
-
     // send response
     res.status(200).json({ user, accessToken, refreshToken });
   } catch (err) {
@@ -185,7 +182,7 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
 
     // Send an email to the user with the reset link
-    const resetLink = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
+    const resetLink = `${process.env.BASE_URL}reset-password/${resetToken}`;
     const mailOptions = {
       from: "gazikalovicaleksandar@gmail.com",
       to: user.email,
@@ -260,7 +257,7 @@ router.get("/verify/:token", async (req, res) => {
 
 // Function to send verification email
 function sendVerificationEmail(name, email, token) {
-  const verificationLink = `${process.env.BASE_URL}/auth/verify/${token}`;
+  const verificationLink = `${process.env.BASE_URL}verify/${token}`;
   const mailOptions = {
     from: "gazikalovicaleksandar@gmail.com",
     to: email,
