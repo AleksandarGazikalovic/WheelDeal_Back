@@ -2,6 +2,19 @@ const router = require("express").Router();
 const Comment = require("../models/Comment");
 const User = require("../models/User");
 const Post = require("../models/Post");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+const s3 = new S3Client({
+  region: process.env.AWS_BUCKET_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
 // Create a comment
 router.post("/", async (req, res) => {
@@ -65,9 +78,25 @@ router.get("/:id", async (req, res) => {
     const comments = await Comment.find({ post: { $in: postIds } })
       .populate({
         path: "author",
-        select: "name surname",
+        select: "name surname profileImage",
       })
       .exec();
+
+    // Loop through comments and update profileImage URLs
+    for (const comment of comments) {
+      if (comment.author && comment.author.profileImage !== "") {
+        const command = new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: comment.author.profileImage,
+        });
+
+        const signedUrl = await getSignedUrl(s3, command, {
+          expiresIn: 3600,
+        });
+
+        comment.author.profileImage = signedUrl;
+      }
+    }
 
     res.status(200).json(comments);
   } catch (err) {
