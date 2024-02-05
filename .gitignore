@@ -3,6 +3,8 @@
 
 ### dotenv ###
 .env
+.env.production
+.env.development
 
 ### Node ###
 # Logs

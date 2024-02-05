@@ -16,24 +16,24 @@ const bodyParser = require('body-parser');
 const morganBody = require('morgan-body');
 const cookieParser = require('cookie-parser');
 
-dotenv.config();
-let FRONTEND_URL = "";
+// dotenv.config();
 //MongoDB Connection, to prod or dev database
 if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: `.env.production` })
   mongoose.connect(process.env.MONGO_URL_PROD, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
-  FRONTEND_URL = "https://wheeldeal.rent"
 }
 else {
+  dotenv.config({ path: `.env.development` })
   mongoose.connect(process.env.MONGO_URL_DEV, {
     dbName: "WheelDealDev",
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
-  FRONTEND_URL = "http://localhost:3000"
 }
+let FRONTEND_URL = process.env.FRONTEND_URL;
 
 // Express App Configuration
 app.use(express.json());

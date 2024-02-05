@@ -14,7 +14,13 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const sharp = require("sharp");
 
-dotenv.config();
+// dotenv.config();
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: `.env.production` })
+}
+else {
+  dotenv.config({ path: `.env.development` })
+}
 
 const storage = multer.memoryStorage();
 const upload = multer({
