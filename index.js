@@ -7,7 +7,7 @@ const morgan = require("morgan");
 const userRoute = require("./routes/users");
 const authRoute = require("./routes/auth");
 const postRoute = require("./routes/posts");
-const countRoute = require("./routes/count");
+const commentRoute = require("./routes/comments");
 const cors = require("cors");
 const path = require("path");
 const https = require("https");
@@ -62,7 +62,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api/users", userRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/posts", postRoute);
-app.use("/api/count", countRoute);
+app.use("/api/comments", commentRoute);
 
 // Check if the environment is production
 if (process.env.NODE_ENV === "production") {
