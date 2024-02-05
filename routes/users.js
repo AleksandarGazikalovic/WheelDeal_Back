@@ -49,8 +49,7 @@ const verifyToken = (req, res, next) => {
 
 //update user
 router.put("/:id", async (req, res) => {
-  console.log(req.body);
-  if (req.body._id === req.params.id || req.body.isAdmin) {
+  if (req.body._id === req.params.id || req.body.isAdmin === "true") {
     delete req.body.profileImage;
     try {
       const user = await User.findByIdAndUpdate(
@@ -61,6 +60,7 @@ router.put("/:id", async (req, res) => {
       const { password, updatedAt, profileImage, ...other } = user._doc;
       res.status(200).json(other);
     } catch (err) {
+      console.log(err);
       return res.status(500).json(err);
     }
   } else {
@@ -70,7 +70,7 @@ router.put("/:id", async (req, res) => {
 
 //delete user
 router.delete("/:id", async (req, res) => {
-  if (req.body.userId === req.params.id || req.body.isAdmin) {
+  if (req.body._id === req.params.id || req.body.isAdmin === "true") {
     try {
       const user = await User.findByIdAndDelete(req.params.id);
       res.status(200).json("Account has been deleted");
@@ -135,9 +135,7 @@ router.get("/:id", async (req, res) => {
 
 //upload profile picture
 router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
-  console.log(req.file);
-  console.log(req.body);
-  if (req.body.userId === req.params.id || req.body.isAdmin) {
+  if (req.body._id === req.params.id || req.body.isAdmin === "true") {
     try {
       const file = req.file;
       const fileName = randomImageName();
