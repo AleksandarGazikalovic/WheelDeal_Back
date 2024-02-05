@@ -14,18 +14,31 @@ const https = require("https");
 const fs = require("fs");
 const bodyParser = require('body-parser');
 const morganBody = require('morgan-body');
+const cookieParser = require('cookie-parser');
 
-dotenv.config();
-
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+// dotenv.config();
+//MongoDB Connection, to prod or dev database
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: `.env.production` })
+  mongoose.connect(process.env.MONGO_URL_PROD, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+}
+else {
+  dotenv.config({ path: `.env.development` })
+  mongoose.connect(process.env.MONGO_URL_DEV, {
+    dbName: "WheelDealDev",
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+}
+let FRONTEND_URL = process.env.FRONTEND_URL;
 
 // Express App Configuration
 app.use(express.json());
 app.use(helmet());
+app.use(cookieParser());
 // app.use(morgan("common"));
 
 // Create a write stream to a log file
@@ -37,8 +50,9 @@ morganBody(app, { stream: logStream, noColors: true });
 
 app.use(
   cors({
-    origin: "*", // Replace with your desired origin(s) or use a function to check request origin dynamically
-    methods: "GET, OPTIONS",
+    origin: FRONTEND_URL, // Replace with your desired origin(s) or use a function to check request origin dynamically
+    methods: "GET, OPTIONS, POST",
+    credentials: true,
     allowedHeaders:
       "Authorization, Origin, X-Requested-With, Content-Type, Accept",
   })
