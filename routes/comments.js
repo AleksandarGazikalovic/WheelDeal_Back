@@ -6,7 +6,13 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const dotenv = require("dotenv");
 
-dotenv.config();
+// dotenv.config();
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: `.env.production` })
+}
+else {
+  dotenv.config({ path: `.env.development` })
+}
 
 const s3 = new S3Client({
   region: process.env.AWS_BUCKET_REGION,

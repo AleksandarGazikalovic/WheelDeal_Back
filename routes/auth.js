@@ -10,7 +10,13 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const logoPath = "/images/logo.png";
 
-dotenv.config();
+// dotenv.config();
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: `.env.production` })
+}
+else {
+  dotenv.config({ path: `.env.development` })
+}
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -32,6 +38,162 @@ const transporter = nodemailer.createTransport({
     user: "gazikalovicaleksandar@gmail.com",
     pass: "xjxa adik reyk qgck",
   },
+});
+
+// make a function that is called if access token has expired while targeting an endpoint using VerifyToken to check access token validity
+// 1. if refresh token hasn't expired, renew both the access token and refresh token (update refresh token change in database for user)
+// 2. if refresh token has expired, remove refresh token cookie from client and return unauthorized response
+router.get("/handleAccessTokenExpiry", async (req, res) => {
+  const authHeaders = req.headers.authorization;
+  const cookie = req.cookies;
+  if (!authHeaders || authHeaders === undefined) {
+    return res.status(401).send({message: "No access token provided"});
+  }
+  const token = req.headers.authorization.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({message: "No access token provided"});
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) { // access token has expired
+      const cookies = req.cookies;
+      if (!cookies?.refreshToken) return res.status(401).send({ message: "Refresh token expired" });
+      const refreshToken = cookies.refreshToken;
+
+      jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err1, decoded1) => {
+        if (err1) { // refresh token has expired
+          const foundUser = await User.findOne({ refreshToken }).exec();
+          let newRefreshTokenArray = foundUser.refreshToken.filter(rt => rt !== refreshToken);
+          foundUser.refreshToken = [...newRefreshTokenArray];
+          const result = await foundUser.save();
+          res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
+          return res.status(401).send({ message: "Refresh token expired" });
+        }
+        if (decoded1) { // refresh token is still valid
+          const foundUser = await User.findOne({ refreshToken }).exec();
+
+          if (!foundUser) { // this is most likely an attempt of refresh token reuse
+            res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
+            return res.status(403).send({message: "Detected attempted refresh token reuse!"});
+          }
+
+          // Issue new access and refresh tokens
+          const accessToken = jwt.sign(
+            { id: foundUser._id.valueOf() },
+            process.env.ACCESS_TOKEN_SECRET,
+            {
+              expiresIn: process.env.ACCESS_TOKEN_DURATION,
+            }
+          );
+          
+          // in case we choose that new refresh token inherits the old refresh token's expiry date
+          // let currentTimestamp = Math.round(Number(new Date()) / 1000)
+          // let newTimestamp = Number(decoded1.exp) - currentTimestamp
+
+          // console.log("Performing refresh token rotation - handleAccessTokenExpiry")
+          const newRefreshToken = jwt.sign(
+            { id: foundUser._id.valueOf() },
+            process.env.REFRESH_TOKEN_SECRET,
+            {
+              expiresIn: process.env.REFRESH_TOKEN_DURATION //newTimestamp
+            }
+          );
+
+          //console.log(decoded1.exp - currentTimestamp)
+
+          let newRefreshTokenArray = foundUser.refreshToken.filter(rt => rt !== refreshToken);
+          foundUser.refreshToken = [...newRefreshTokenArray, newRefreshToken];
+          const result = await foundUser.save();
+
+          res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 30 * 24 * 60 * 60 * 1000 }); // set cookie max age to 30 days
+          return res.status(200).json({accessToken: accessToken})
+
+        }
+      });
+    }
+  });
+});
+
+
+
+router.get("/handleRefreshToken", async (req, res) => {
+
+  const cookies = req.cookies;
+  if (!cookies?.refreshToken) return res.status(401).send();
+  const refreshToken = cookies.refreshToken;
+
+  const foundUser = await User.findOne({ refreshToken }).exec();
+
+  // Detected refresh token reuse! - refresh token has been deleted earlier
+  if (!foundUser) {
+      jwt.verify(
+          refreshToken,
+          process.env.REFRESH_TOKEN_SECRET,
+          async (err, decoded) => { // attempted refresh token reuse!
+              // console.log('attempted refresh token reuse!')
+              res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'None', secure: true });
+
+              // stolen refresh token has expired - it is not in database anymore
+              if (err) return res.status(403).send(); //Forbidden
+
+              // stolen refresh token hasn't expired
+              const hackedUser = await User.findOne({ _id: decoded.id }).exec();
+              hackedUser.refreshToken = [];
+              const result = await hackedUser.save();
+              // console.log(result);
+          }
+      )
+      return res.status(403).send(); //Forbidden
+  }
+
+  const newRefreshTokenArray = foundUser.refreshToken.filter(rt => rt !== refreshToken);
+
+  // evaluate jwt 
+  jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+      async (err, decoded) => {
+          // console.log(decoded)
+          if (err) { // if refresh token expired or is faulty, remove it and force user to login again! 
+              // console.log('expired refresh token')
+              foundUser.refreshToken = [...newRefreshTokenArray];
+              const result = await foundUser.save();
+
+              res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'None', secure: true });
+              return res.status(401).send({ message: "Refresh token expired" });
+          }
+          else {
+
+            if (err || foundUser._id.valueOf() !== decoded.id) return res.status(403).send();
+            else{
+              // Refresh token was still valid
+              const accessToken = jwt.sign(
+                { id: foundUser._id.valueOf() },
+                process.env.ACCESS_TOKEN_SECRET,
+                {
+                  expiresIn: process.env.ACCESS_TOKEN_DURATION,
+                }
+              );
+              
+              // console.log("Performing refresh token rotation - handleRefreshToken")
+              const newRefreshToken = jwt.sign(
+                { id: foundUser._id.valueOf() },
+                process.env.REFRESH_TOKEN_SECRET,
+                {
+                  expiresIn: process.env.REFRESH_TOKEN_DURATION,
+                }
+              );
+              // Saving refreshToken with current user
+              foundUser.refreshToken = [...newRefreshTokenArray, newRefreshToken];
+              const result = await foundUser.save();
+
+              // Creates Secure Cookie with refresh token
+              res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 30 * 24 * 60 * 60 * 1000 }); // set cookie max age to 30 days
+
+              return res.status(200).json({ accessToken });
+            }
+          }
+      }
+  );
 });
 
 //Register
@@ -56,6 +218,7 @@ router.post("/register", async (req, res) => {
       verificationToken: verificationToken,
     });
 
+
     // save user
     await newUser.save();
 
@@ -74,8 +237,11 @@ router.post("/register", async (req, res) => {
 //Login
 router.post("/login", async (req, res) => {
   try {
+    const cookies = req.cookies;
+
     // find user
     const user = await User.findOne({ email: req.body.email });
+    
     if (!user) {
       return res.status(404).json("User not found");
     }
@@ -120,23 +286,88 @@ router.post("/login", async (req, res) => {
       { id: user.id },
       process.env.ACCESS_TOKEN_SECRET,
       {
-        expiresIn: "30m",
+        expiresIn: process.env.ACCESS_TOKEN_DURATION,
       }
     );
-    const refreshToken = jwt.sign(
+    const newRefreshToken = jwt.sign(
       { id: user.id },
       process.env.REFRESH_TOKEN_SECRET,
       {
-        expiresIn: "30d",
+        expiresIn: process.env.REFRESH_TOKEN_DURATION,
       }
     );
 
+    let newRefreshTokenArray =
+      !cookies?.refreshToken
+        ? user.refreshToken
+        : user.refreshToken.filter(rt => rt !== cookies.refreshToken);
+    // console.log(newRefreshTokenArray)
+
+    // if (cookies?.refreshToken) {
+
+    //   /* 
+    //   Scenario added here: 
+    //       1) User logs in but never uses RT and does not logout 
+    //       2) RT is stolen
+    //       3) If 1 & 2, reuse detection is needed to clear all RTs when user logs in
+    //   */
+    //   const oldRefreshToken = cookies.refreshToken;
+    //   const foundToken = await User.findOne({ oldRefreshToken }).exec();
+    //   // console.log(foundToken)
+
+    //   // Detected refresh token reuse!
+    //   if (!foundToken) {
+    //       console.log('Attempted refresh token reuse at login!')
+    //       // clear out ALL previous refresh tokens
+    //       newRefreshTokenArray = [];
+    //   }
+
+    //   res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'None', secure: true });
+    // }
+
+    // Saving refreshToken with current user
+    user.refreshToken = [...newRefreshTokenArray, newRefreshToken];
+    const result = await user.save();
+
+    // don't return list of refreshTokens to client
+    user.refreshToken = []
+
+    // Creates Secure Cookie with refresh token
+    res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 30 * 24 * 60 * 60 * 1000 }); // 30 * 24h * 60min * 60s * 1000ms - set cookie max age to 30 days
+      
     // send response
-    res.status(200).json({ user, accessToken, refreshToken });
+    res.status(200).json({ user, accessToken });
   } catch (err) {
     console.log(err);
     res.status(500).json(err);
   }
+});
+
+// Logout
+router.post("/logout", async (req, res) => {
+  // On client, also delete the accessToken
+  // console.log("Starting to log out..")
+  const cookies = req.cookies;
+  console.log(cookies)
+  if (!cookies?.refreshToken) return res.sendStatus(204); //No content
+  const refreshToken = cookies.refreshToken;
+
+  // Is refreshToken in db?
+  const foundUser = await User.findOne({ refreshToken }).exec();
+  // console.log("Attempting to log out...")
+  console.log(foundUser)
+  if (!foundUser) {
+      res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
+      return res.sendStatus(204);
+  }
+
+  // Delete refreshToken in db
+  foundUser.refreshToken = foundUser.refreshToken.filter(rt => rt !== refreshToken);;
+  const result = await foundUser.save();
+  console.log(result);
+
+  res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
+  return res.sendStatus(204);
 });
 
 //verify user
