@@ -41,4 +41,4 @@ jobs:
             fi
 
             CONTAINER_NAME="wheel-deal-backend-$(date +"%Y%m%d%H%M%S")"
-            docker run -d -p 8800:8800 --name $CONTAINER_NAME -v /etc/letsencrypt:/certs -v /root/env/.env:/app/.env ${{ secrets.DOCKER_IMAGE }}
+            docker run -d -p 8800:8800 --name $CONTAINER_NAME -v /etc/letsencrypt:/certs -v /root/env/.env:/app/.env.production ${{ secrets.DOCKER_IMAGE }}
