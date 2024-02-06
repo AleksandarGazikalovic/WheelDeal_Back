@@ -22,8 +22,16 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
-      min: 6,
+      //required: true,
+      //min: 6,
+    },
+    externID: { // used only for registering/logging in via Google/Facebook
+      type: String,
+      default: undefined
+    },
+    thirdParty: {
+      type: String,
+      default: undefined
     },
     IDCard: {
       type: String,
