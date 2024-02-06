@@ -12,21 +12,20 @@ const cors = require("cors");
 const path = require("path");
 const https = require("https");
 const fs = require("fs");
-const bodyParser = require('body-parser');
-const morganBody = require('morgan-body');
-const cookieParser = require('cookie-parser');
+const bodyParser = require("body-parser");
+const morganBody = require("morgan-body");
+const cookieParser = require("cookie-parser");
 
 // dotenv.config();
 //MongoDB Connection, to prod or dev database
 if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: `.env.production` })
+  dotenv.config({ path: `.env.production` });
   mongoose.connect(process.env.MONGO_URL_PROD, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
-}
-else {
-  dotenv.config({ path: `.env.development` })
+} else {
+  dotenv.config({ path: `.env.development` });
   mongoose.connect(process.env.MONGO_URL_DEV, {
     dbName: "WheelDealDev",
     useNewUrlParser: true,
@@ -42,11 +41,12 @@ app.use(cookieParser());
 // app.use(morgan("common"));
 
 // Create a write stream to a log file
-const logStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' });
+const logStream = fs.createWriteStream(path.join(__dirname, "access.log"), {
+  flags: "a",
+});
 
 app.use(bodyParser.json());
 morganBody(app, { stream: logStream, noColors: true });
-
 
 app.use(
   cors({

@@ -15,7 +15,7 @@ const PostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    model: {
+    carModel: {
       type: String,
       required: true,
     },

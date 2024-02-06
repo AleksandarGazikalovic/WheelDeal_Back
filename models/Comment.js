@@ -11,11 +11,11 @@ const commentSchema = new mongoose.Schema({
     ref: "Post", // Reference to the Post model
     required: true,
   },
-  paymentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Payment",
-    required: true,
-  },
+  // paymentId: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: "Payment",
+  //   required: true,
+  // },
   rating: {
     type: Number,
     required: true,

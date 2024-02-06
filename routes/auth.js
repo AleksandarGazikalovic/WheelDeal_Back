@@ -97,7 +97,7 @@ router.get("/handleAccessTokenExpiry", async (req, res) => {
 
             // Issue new access and refresh tokens
             const accessToken = jwt.sign(
-              { id: foundUser.id },
+              { id: foundUser._id.valueOf() },
               process.env.ACCESS_TOKEN_SECRET,
               {
                 expiresIn: process.env.ACCESS_TOKEN_DURATION,
@@ -110,7 +110,7 @@ router.get("/handleAccessTokenExpiry", async (req, res) => {
 
             // console.log("Performing refresh token rotation - handleAccessTokenExpiry")
             const newRefreshToken = jwt.sign(
-              { id: foundUser.id },
+              { id: foundUser._id.valueOf() },
               process.env.REFRESH_TOKEN_SECRET,
               {
                 expiresIn: process.env.REFRESH_TOKEN_DURATION, //newTimestamp
@@ -164,7 +164,7 @@ router.get("/handleRefreshToken", async (req, res) => {
         if (err) return res.status(403).send(); //Forbidden
 
         // stolen refresh token hasn't expired
-        const hackedUser = await User.findOne({ id: decoded.id }).exec();
+        const hackedUser = await User.findOne({ _id: decoded.id }).exec();
         hackedUser.refreshToken = [];
         const result = await hackedUser.save();
         // console.log(result);
@@ -196,11 +196,12 @@ router.get("/handleRefreshToken", async (req, res) => {
         });
         return res.status(401).send({ message: "Refresh token expired" });
       } else {
-        if (err || foundUser.id !== decoded.id) return res.status(403).send();
+        if (err || foundUser._id.valueOf() !== decoded.id)
+          return res.status(403).send();
         else {
           // Refresh token was still valid
           const accessToken = jwt.sign(
-            { id: foundUser.id },
+            { id: foundUser._id.valueOf() },
             process.env.ACCESS_TOKEN_SECRET,
             {
               expiresIn: process.env.ACCESS_TOKEN_DURATION,
@@ -209,7 +210,7 @@ router.get("/handleRefreshToken", async (req, res) => {
 
           // console.log("Performing refresh token rotation - handleRefreshToken")
           const newRefreshToken = jwt.sign(
-            { id: foundUser.id },
+            { id: foundUser._id.valueOf() },
             process.env.REFRESH_TOKEN_SECRET,
             {
               expiresIn: process.env.REFRESH_TOKEN_DURATION,
@@ -557,14 +558,14 @@ router.post("/logout", async (req, res) => {
   // On client, also delete the accessToken
   // console.log("Starting to log out..")
   const cookies = req.cookies;
-  // console.log(cookies);
+  console.log(cookies);
   if (!cookies?.refreshToken) return res.sendStatus(204); //No content
   const refreshToken = cookies.refreshToken;
 
   // Is refreshToken in db?
   const foundUser = await User.findOne({ refreshToken }).exec();
   // console.log("Attempting to log out...")
-  // console.log(foundUser);
+  console.log(foundUser);
   if (!foundUser) {
     res.clearCookie("refreshToken", {
       httpOnly: true,
@@ -641,7 +642,7 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
 
     // Send an email to the user with the reset link
-    const resetLink = `${process.env.BASE_URL}reset-password/${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     const mailOptions = {
       from: "gazikalovicaleksandar@gmail.com",
       to: user.email,
@@ -716,7 +717,7 @@ router.get("/verify/:token", async (req, res) => {
 
 // Function to send verification email
 function sendVerificationEmail(name, email, token) {
-  const verificationLink = `${process.env.BASE_URL}verify/${token}`;
+  const verificationLink = `${process.env.FRONTEND_URL}/verify/${token}`;
   const mailOptions = {
     from: "gazikalovicaleksandar@gmail.com",
     to: email,
