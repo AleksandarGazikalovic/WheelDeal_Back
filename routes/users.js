@@ -75,7 +75,7 @@ router.put("/:id", async (req, res) => {
       return res.status(500).json(err);
     }
   } else {
-    return res.status(403).json("You can update only your account!");
+    return res.status(403).json({ message: "You can update only your account!" });
   }
 });
 
@@ -84,12 +84,13 @@ router.delete("/:id", async (req, res) => {
   if (req.body._id === req.params.id || req.body.isAdmin === "true") {
     try {
       const user = await User.findByIdAndDelete(req.params.id);
-      res.status(200).json("Account has been deleted");
+      res.status(200).json({ message: "Account has been deleted" });
     } catch (err) {
-      return res.status(500).json(err);
+      console.log(err);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   } else {
-    return res.status(403).json("You can delete only your account!");
+    return res.status(403).json({ message: "You can delete only your account!" });
   }
 });
 
@@ -114,7 +115,7 @@ router.get("/", verifyToken, async (req, res) => {
     res.status(200).json(other);
   } catch (err) {
     console.log(err);
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -140,7 +141,7 @@ router.get("/:id", async (req, res) => {
     res.status(200).json(other);
   } catch (err) {
     console.log(err);
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -197,10 +198,10 @@ router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
       }
     } catch (err) {
       console.error(err);
-      res.status(500).json(err);
+      res.status(500).json({ message: "Internal Server Error" });
     }
   } else {
-    return res.status(403).json("You can update only your account!");
+    return res.status(403).json({ message: "You can update only your account!" });
   }
 });
 

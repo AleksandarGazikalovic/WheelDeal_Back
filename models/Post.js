@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const Location = require("../models/Location");
 
 const PostSchema = new mongoose.Schema(
   {
@@ -47,7 +46,22 @@ const PostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    location: Location,
+    location: {
+      address: {
+        type: String,
+        required: true,
+      },
+      latLng: {
+        lat: {
+          type: Number,
+          required: true,
+        },
+        lng: {
+          type: Number,
+          required: true,
+        },
+      },
+    },
     price: {
       type: Number,
       required: true,

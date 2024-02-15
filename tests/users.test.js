@@ -138,7 +138,7 @@ describe("User Routes", () => {
         .send(updateData);
 
       expect(response.status).toBe(403);
-      expect(response.body).toBe("You can update only your account!");
+      expect(response.body.message).toBe("You can update only your account!");
     });
   });
 
@@ -158,7 +158,7 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toBe("Account has been deleted");
+      expect(response.body.message).toBe("Account has been deleted");
     });
 
     it("should handle forbidden deletion", async () => {
@@ -176,7 +176,7 @@ describe("User Routes", () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body).toBe("You can delete only your account!");
+      expect(response.body.message).toBe("You can delete only your account!");
     });
   });
 
@@ -217,7 +217,7 @@ describe("User Routes", () => {
         .attach("profileImage", imagePath);
 
       expect(response.status).toBe(403);
-      expect(response.body).toBe("You can update only your account!");
+      expect(response.body.message).toBe("You can update only your account!");
     });
   });
 });

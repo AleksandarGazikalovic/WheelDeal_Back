@@ -80,11 +80,22 @@ router.post("/", upload.array("images[]", 10), verifyToken, async (req, res) => 
       ...req.body,
     });
     const savedPost = await newPost.save();
+    const updatedImages = [];
+    for (let i = 0; i < savedPost.images.length; i++) {
+      const getObjectParams = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: savedPost.images[i],
+      };
+      const command = new GetObjectCommand(getObjectParams);
+      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+      updatedImages.push(url);
+    }
+    savedPost.images = updatedImages;
 
     res.status(200).json(savedPost);
   } catch (err) {
     console.log(err);
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -106,10 +117,10 @@ router.put("/:id", async (req, res) => {
         res.status(500).json(err);
       }
     } else {
-      res.status(401).json("You can update only your post!");
+      res.status(401).json({ message: "You can update only your post!" });
     }
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -119,16 +130,16 @@ router.delete("/:id", async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (post.userId === req.body.userId) {
       try {
-        await post.delete();
-        res.status(200).json("Post has been deleted...");
+        await Post.findByIdAndDelete(req.params.id);
+        res.status(200).json({ message: "Post has been deleted!" });
       } catch (err) {
         res.status(500).json(err);
       }
     } else {
-      res.status(401).json("You can only delete your post!");
+      res.status(401).json({ message: "You can only delete your post!" });
     }
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -140,26 +151,22 @@ router.put("/:id/like", async (req, res) => {
     if (!user.likedPosts.includes(post._id)) {
       try {
         await user.updateOne({ $push: { likedPosts: post._id.toString() } });
-        console.log(user);
         res.status(200).json(user.likedPosts);
-        console.log(user);
       } catch (err) {
-        res.status(500).json(err);
         console.log(err);
+        res.status(500).json({ message: "Internal Server Error" });
       }
     } else {
       try {
         await user.updateOne({ $pull: { likedPosts: post._id.toString() } });
-        console.log(user);
         res.status(200).json(user.likedPosts);
-        console.log(user);
       } catch (err) {
-        res.status(500).json(err);
         console.log(err);
+        res.status(500).json({ message: "Internal Server Error" });
       }
     }
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
     console.log(err);
   }
 });
@@ -181,7 +188,7 @@ router.get("/:id", async (req, res) => {
     post.images = updatedImages;
     res.status(200).json(post);
   } catch (err) {
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -207,7 +214,8 @@ router.get("/profile/:id", async (req, res) => {
     const updatedPosts = await Promise.all(imagePromises);
     res.status(200).json(updatedPosts);
   } catch (err) {
-    res.status(500).json(err);
+    console.log(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -238,7 +246,8 @@ router.get("/liked/:id", async (req, res) => {
     const updatedPosts = await Promise.all(imagePromises);
     res.status(200).json(updatedPosts);
   } catch (err) {
-    res.status(500).json(err);
+    console.log(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
@@ -392,7 +401,7 @@ router.get("/filter/all", async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 

@@ -241,7 +241,7 @@ router.post("/register", async (req, res) => {
     // Check if the email already exists in the database
     const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
-      return res.status(400).json("Email is already in use.");
+      return res.status(400).json({ message: "Email is already in use." });
     }
     // generate new password
     const salt = await bcrypt.genSalt(10);
@@ -281,16 +281,12 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ email: req.body.email });
 
     if (!user) {
-      return res.status(404).json("User not found");
+      return res.status(404).json({ message: "There is no existing user connnected with that email address." });
     }
 
     // Check if the user is verified
     if (!user.isAccountVerified) {
-      return res
-        .status(403)
-        .json(
-          "Email not verified. Please check your email for the verification link."
-        );
+      return res.status(403).json({ message: "Email not verified. Please check your email for the verification link." });
     }
 
     // compare password
@@ -302,22 +298,7 @@ router.post("/login", async (req, res) => {
     if (!validPassword) {
       return res
         .status(400)
-        .json("Failed to log in! Please check your credentials.");
-    }
-
-    const profileImage = user.profileImage;
-
-    if (profileImage !== "") {
-      const command = new GetObjectCommand({
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: profileImage,
-      });
-
-      const signedUrl = await getSignedUrl(s3, command, {
-        expiresIn: 3600,
-      });
-
-      user.profileImage = signedUrl;
+        .json({ message: "Failed to log in! Please check your credentials." });
     }
 
     const accessToken = jwt.sign(
@@ -368,6 +349,22 @@ router.post("/login", async (req, res) => {
 
     // don't return list of refreshTokens to client
     user.refreshToken = [];
+
+    // get signed url for profile image after saving refreshToken in database
+    const profileImage = user.profileImage;
+
+    if (profileImage !== "") {
+      const command = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: profileImage,
+      });
+
+      const signedUrl = await getSignedUrl(s3, command, {
+        expiresIn: 3600,
+      });
+
+      user.profileImage = signedUrl;
+    }
 
     // Creates Secure Cookie with refresh token
     res.cookie("refreshToken", newRefreshToken, {
@@ -436,12 +433,13 @@ router.put("/:id/verify", async (req, res) => {
           isLicenceVerified: true,
         },
       });
-      res.status(200).json("Account has been verified");
+      res.status(200).json({ message: "Account has been verified" });
     } catch (err) {
-      return res.status(500).json(err);
+      console.log(err);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
   } else {
-    return res.status(403).json("You can verify only your account!");
+    return res.status(403).json({ message: "You can verify only your account!" });
   }
 });
 
@@ -453,7 +451,7 @@ router.post("/forgot-password", async (req, res) => {
     // Find the user with the given email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Generate a reset token
@@ -495,7 +493,7 @@ router.post("/reset-password/:token", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid or expired token" });
+      return res.status(400).json({ message: "Invalid or expired token" });
     }
 
     // Update the user's password and clear the reset token fields
@@ -506,7 +504,7 @@ router.post("/reset-password/:token", async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.status(200).json({ message: "Password reset successful" });
+    res.status(200).json({ message: "Password reset successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -534,7 +532,7 @@ router.get("/verify/:token", async (req, res) => {
     console.log(err);
     res
       .status(500)
-      .json({ message: "An error occurred during email verification." });
+      .json({ error: "An error occurred during email verification." });
   }
 });
 

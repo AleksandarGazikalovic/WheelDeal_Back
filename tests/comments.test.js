@@ -110,7 +110,7 @@ describe("Comment Routes", () => {
         .post("/api/comments/")
         .send(mockCommentData);
       expect(response.statusCode).toBe(200);
-      expect(response.body).toBe("Comment created successfully.");
+      expect(response.body.message).toBe("Comment created successfully.");
     });
 
     it("should return user not found", async () => {
@@ -122,7 +122,7 @@ describe("Comment Routes", () => {
           author: `${fakeId}`, // User not found
         });
       expect(response.statusCode).toBe(404);
-      expect(response.body).toBe("User not found.");
+      expect(response.body.message).toBe("User not found.");
     });
 
     it("should return post not found", async () => {
@@ -135,7 +135,7 @@ describe("Comment Routes", () => {
           post: `${fakeId}`, // Post not found
         });
       expect(response.statusCode).toBe(404);
-      expect(response.body).toBe("Post not found.");
+      expect(response.body.message).toBe("Post not found.");
     });
 
     it("should return invalid rating", async () => {
@@ -149,7 +149,7 @@ describe("Comment Routes", () => {
           rating: null, // Invalid rating
         });
       expect(response.statusCode).toBe(403);
-      expect(response.body).toBe("Rating is required.");
+      expect(response.body.message).toBe("Rating is required.");
     });
     it("should return author can't comment own post", async () => {
       Comment.create.mockResolvedValueOnce(null);
@@ -162,7 +162,7 @@ describe("Comment Routes", () => {
           author: `${userMockData._id}`, // Author is the same as the post owner
         });
       expect(response.statusCode).toBe(403);
-      expect(response.body).toBe("You can't comment your own post.");
+      expect(response.body.message).toBe("You can't comment your own post.");
     });
   });
   // Fetch all comments for a post related to a user
@@ -195,7 +195,7 @@ describe("Comment Routes", () => {
       const response = await request(app).get("/api/comments/invalidUserId");
 
       expect(response.statusCode).toBe(404);
-      expect(response.body).toBe("Posts not found.");
+      expect(response.body.message).toBe("Posts not found.");
     });
   });
 
@@ -219,7 +219,7 @@ describe("Comment Routes", () => {
         .put(`/api/comments/${mockCommentData._id}`)
         .send(updateData);
       expect(response.statusCode).toBe(404);
-      expect(response.body).toBe("Comment not found.");
+      expect(response.body.message).toBe("Comment not found.");
     });
 
     it("should return forbidden update", async () => {
@@ -232,7 +232,7 @@ describe("Comment Routes", () => {
           author: `${fakeId}`, // Different user ID than the one in the token
         });
       expect(response.statusCode).toBe(403);
-      expect(response.body).toBe("You can't update this comment.");
+      expect(response.body.message).toBe("You can't update this comment.");
     });
   });
   // Delete a comment
@@ -245,7 +245,7 @@ describe("Comment Routes", () => {
           author: `${mockCommentData.author}`,
         });
       expect(response.statusCode).toBe(200);
-      expect(response.body).toBe("Comment deleted successfully.");
+      expect(response.body.message).toBe("Comment deleted successfully.");
     });
 
     it("should return comment not found for deletion", async () => {
@@ -255,7 +255,7 @@ describe("Comment Routes", () => {
           author: `${mockCommentData.author}`,
         });
       expect(response.statusCode).toBe(404);
-      expect(response.body).toBe("Comment not found.");
+      expect(response.body.message).toBe("Comment not found.");
     });
 
     it("should return forbidden deletion", async () => {
@@ -266,7 +266,7 @@ describe("Comment Routes", () => {
           author: `${fakeId}`, // Different user ID than the one in the token
         });
       expect(response.statusCode).toBe(403);
-      expect(response.body).toBe("You can't delete this comment.");
+      expect(response.body.message).toBe("You can't delete this comment.");
     });
   });
 });
