@@ -262,6 +262,23 @@ router.get("/profile/:id", async (req, res) => {
 router.get("/liked/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
+    console.log(user.likedPosts);
+
+    // Filter out deleted posts from likedPosts
+    const validLikedPosts = await Promise.all(
+      user.likedPosts.map(async (postId) => {
+        const post = await Post.findById(postId);
+        return post !== null ? postId : null;
+      })
+    );
+
+    // Remove null entries (deleted posts) from the array
+    user.likedPosts = validLikedPosts.filter((postId) => postId !== null);
+    console.log(user.likedPosts);
+
+    // Save the updated likedPosts array
+    await user.save();
+
     const posts = await Promise.all(
       user.likedPosts.map((postId) => {
         return Post.findById(postId);
