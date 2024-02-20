@@ -475,9 +475,19 @@ router.post("/login/third_party", async (req, res) => {
 
     // find user
     const user = await User.findOne({ email: req.body.email });
+    console.log(user);
 
     if (!user) {
       return res.status(404).json("User not found");
+    }
+
+    if (!user.externID) {
+      // in case user registered using email and password but now tries login with Google/Facebook
+      return res
+        .status(400)
+        .json(
+          "You have to log in using the same method you used when registering."
+        );
     }
 
     // compare password
@@ -558,14 +568,14 @@ router.post("/logout", async (req, res) => {
   // On client, also delete the accessToken
   // console.log("Starting to log out..")
   const cookies = req.cookies;
-  console.log(cookies);
+  // console.log(cookies);
   if (!cookies?.refreshToken) return res.sendStatus(204); //No content
   const refreshToken = cookies.refreshToken;
 
   // Is refreshToken in db?
   const foundUser = await User.findOne({ refreshToken }).exec();
   // console.log("Attempting to log out...")
-  console.log(foundUser);
+  // console.log(foundUser);
   if (!foundUser) {
     res.clearCookie("refreshToken", {
       httpOnly: true,
