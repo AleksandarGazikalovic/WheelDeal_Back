@@ -14,10 +14,9 @@ const jwt = require("jsonwebtoken");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: `.env.production` })
-}
-else {
-  dotenv.config({ path: `.env.development` })
+  dotenv.config({ path: `.env.production` });
+} else {
+  dotenv.config({ path: `.env.development` });
 }
 
 const storage = multer.memoryStorage();
@@ -36,19 +35,43 @@ const s3 = new S3Client({
   },
 });
 
+const uploadImagesToS3 = async (files) => {
+  const imageKeys = [];
+
+  for (const file of files) {
+    const imageName = randomImageName();
+    const uploadParams = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Body: file.buffer,
+      Key: imageName,
+      ContentType: file.mimetype,
+    };
+
+    const command = new PutObjectCommand(uploadParams);
+    await s3.send(command);
+
+    imageKeys.push(imageName);
+  }
+
+  return imageKeys;
+};
+
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization
+  const authHeader = req.headers.authorization;
   const token = req.headers.authorization?.split(" ")[1];
   if (!authHeader || !token) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => { // add logic to detect if someone tampered with access token
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    // add logic to detect if someone tampered with access token
     if (err) {
       if (err.name == "TokenExpiredError") {
         return res.status(401).json({ message: "Access token expired" });
       } else {
-        return res.status(401).json({ message: "Unauthorized, token signature usuccessfuly verified" });
+        return res.status(401).json({
+          message: "Unauthorized, token signature usuccessfuly verified",
+        });
       }
     }
     req.user = decoded;
@@ -57,69 +80,85 @@ const verifyToken = (req, res, next) => {
 };
 
 //create a post
-router.post("/", upload.array("images[]", 10), verifyToken, async (req, res) => {
-  try {
-    const imageKeys = [];
+router.post(
+  "/",
+  upload.array("images[]", 10),
+  verifyToken,
+  async (req, res) => {
+    try {
+      const imageKeys = await uploadImagesToS3(req.files);
 
-    req.files.forEach((file) => {
-      const imageName = randomImageName();
-      const uploadParams = {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Body: file.buffer,
-        Key: imageName,
-        ContentType: file.mimetype,
-      };
+      const newPost = new Post({
+        images: imageKeys,
+        ...req.body,
+      });
 
-      const command = new PutObjectCommand(uploadParams);
-      s3.send(command);
+      const savedPost = await newPost.save();
 
-      imageKeys.push(imageName);
-    });
-    const newPost = new Post({
-      images: imageKeys,
-      ...req.body,
-    });
-    const savedPost = await newPost.save();
-    const updatedImages = [];
-    for (let i = 0; i < savedPost.images.length; i++) {
-      const getObjectParams = {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: savedPost.images[i],
-      };
-      const command = new GetObjectCommand(getObjectParams);
-      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-      updatedImages.push(url);
+      const updatedImages = [];
+
+      for (let i = 0; i < savedPost.images.length; i++) {
+        const getObjectParams = {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: savedPost.images[i],
+        };
+
+        const command = new GetObjectCommand(getObjectParams);
+        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        updatedImages.push(url);
+      }
+
+      savedPost.images = updatedImages;
+
+      res.status(200).json(savedPost);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal Server Error" });
     }
-    savedPost.images = updatedImages;
-
-    res.status(200).json(savedPost);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Internal Server Error" });
   }
-});
+);
 
 //update a post
-router.put("/:id", async (req, res) => {
+router.put("/:id", upload.array("images[]", 10), async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (post.userId === req.body.userId) {
-      try {
-        const updatedPost = await Post.findByIdAndUpdate(
-          req.params.id,
-          {
-            $set: req.body,
-          },
-          { new: true }
-        );
-        res.status(200).json(updatedPost);
-      } catch (err) {
-        res.status(500).json(err);
+      let imageKeys = [];
+      if (req.files && req.files.length > 0) {
+        imageKeys = await uploadImagesToS3(req.files);
+      } else {
+        imageKeys = post.images;
       }
+      const updatedPost = await Post.findByIdAndUpdate(
+        req.params.id,
+        {
+          images: imageKeys,
+          ...req.body,
+        },
+        { new: true }
+      );
+
+      const updatedImages = [];
+
+      for (let i = 0; i < updatedPost.images.length; i++) {
+        const getObjectParams = {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: updatedPost.images[i],
+        };
+
+        const command = new GetObjectCommand(getObjectParams);
+        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        updatedImages.push(url);
+      }
+
+      updatedPost.images = updatedImages;
+
+      res.status(200).json(updatedPost);
     } else {
-      res.status(401).json({ message: "You can update only your post!" });
+      res.status(401).json({ message: "You can only update your post!" });
     }
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });

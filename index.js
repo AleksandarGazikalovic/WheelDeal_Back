@@ -51,7 +51,7 @@ morganBody(app, { stream: logStream, noColors: true });
 app.use(
   cors({
     origin: FRONTEND_URL, // Replace with your desired origin(s) or use a function to check request origin dynamically
-    methods: "GET, OPTIONS, POST, PUT",
+    methods: "GET, OPTIONS, POST, PUT, PATCH, DELETE",
     credentials: true,
     allowedHeaders:
       "Authorization, Origin, X-Requested-With, Content-Type, Accept",

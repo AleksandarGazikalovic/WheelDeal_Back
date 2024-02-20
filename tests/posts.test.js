@@ -193,12 +193,20 @@ describe("Post routes", () => {
     it("should update a post", async () => {
       Post.findById.mockResolvedValueOnce(mockPostData);
       Post.findByIdAndUpdate.mockResolvedValueOnce(expectedUpdatedPostData);
+      jest.spyOn(Post.prototype, "save").mockResolvedValueOnce(mockPostData);
       const response = await request(app)
-        .put(`/api/posts/${mockPostData._id}`)
-        .send(updateObject)
-        .set("Authorization", `Bearer ${mockToken}`);
+        .put(`/api/posts/${updateObject._id}`)
+        .field("userId", updateObject.userId)
+        .field("brand", updateObject.brand)
+        .field("price", updateObject.price)
+        .field("year", updateObject.year)
+        // .attach("images", mockPostData.images) //Cant get this to work
+        .set("Authorization", `Bearer ${mockToken}`); // Replace with the path to an image file
       expect(response.status).toBe(200);
-      expect(response.body).toEqual(expectedUpdatedPostData);
+      expect(response.body).toEqual({
+        ...expectedUpdatedPostData,
+        images: expect.any(Array),
+      }); //images transformed to something else
     });
 
     it("should handle forbidden update", async () => {
@@ -209,7 +217,7 @@ describe("Post routes", () => {
         .send({ ...updateObject, userId: fakeId }) // Different post ID than the one in the body
         .set("Authorization", `Bearer ${mockToken}`);
       expect(response.status).toBe(401);
-      expect(response.body.message).toBe("You can update only your post!");
+      expect(response.body.message).toBe("You can only update your post!");
     });
   });
 
