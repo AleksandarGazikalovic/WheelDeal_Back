@@ -12,6 +12,8 @@ const dotenv = require("dotenv");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
+const { convertPicture, pictureFormat } = require("../modules/pictures");
+
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -35,16 +37,21 @@ const s3 = new S3Client({
   },
 });
 
+// image uploading with compression
 const uploadImagesToS3 = async (files) => {
   const imageKeys = [];
 
   for (const file of files) {
     const imageName = randomImageName();
+
+    // convert image to webp and compress it
+    const convertedPicture = await convertPicture(file.buffer);
+
     const uploadParams = {
       Bucket: process.env.S3_BUCKET_NAME,
-      Body: file.buffer,
+      Body: convertedPicture,
       Key: imageName,
-      ContentType: file.mimetype,
+      ContentType: pictureFormat,
     };
 
     const command = new PutObjectCommand(uploadParams);
@@ -92,22 +99,17 @@ router.post(
         images: imageKeys,
         ...req.body,
       });
-
       const savedPost = await newPost.save();
-
       const updatedImages = [];
-
       for (let i = 0; i < savedPost.images.length; i++) {
         const getObjectParams = {
           Bucket: process.env.S3_BUCKET_NAME,
           Key: savedPost.images[i],
         };
-
         const command = new GetObjectCommand(getObjectParams);
         const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
         updatedImages.push(url);
       }
-
       savedPost.images = updatedImages;
 
       res.status(200).json(savedPost);
