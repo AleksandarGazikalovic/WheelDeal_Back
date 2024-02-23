@@ -8,8 +8,8 @@ const {
   DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const {
-  convertPicture,
-  compressProfileImage,
+  convertPostPicture,
+  convertProfilePicture,
   pictureFormat,
 } = require("./pictures");
 
@@ -51,7 +51,7 @@ const uploadPostImagesToS3 = async (files) => {
     const imageName = randomImageName();
     const fileContent = file.buffer;
     // convert image to webp and compress it
-    const convertedPicture = await convertPicture(fileContent);
+    const convertedPicture = await convertPostPicture(fileContent);
 
     const uploadParams = {
       Bucket: process.env.S3_BUCKET_NAME,
@@ -70,11 +70,11 @@ const uploadPostImagesToS3 = async (files) => {
 };
 
 async function uploadProfileImageToS3(file, fileName) {
-  const fileType = file.mimetype;
+  const fileType = pictureFormat;
   const fileContent = file.buffer;
 
   // Resize and compress the image
-  const resizedImageBuffer = await compressProfileImage(fileContent);
+  const resizedImageBuffer = await convertProfilePicture(fileContent);
 
   // Upload the new profile image to your storage (e.g., S3)
   const command = new PutObjectCommand({

@@ -4,7 +4,7 @@ const sharp = require("sharp");
 const pictureFormat = "image/webp";
 
 // convert image to selected size, format and quality
-async function convertPicture(picture) {
+async function convertPostPicture(picture) {
   const convertedPicture = await sharp(picture)
     .resize(1440, 1080, { fit: "contain" })
     .webp({
@@ -15,12 +15,18 @@ async function convertPicture(picture) {
   return convertedPicture;
 }
 
-async function compressProfileImage(image) {
-  const compressedImageBuffer = await sharp(image)
-    .resize({ width: 200, height: 200 }) // Adjust the dimensions as needed
+async function convertProfilePicture(picture) {
+  const compressedImageBuffer = await sharp(picture)
+    .resize({
+      fit: "contain",
+      width: 250,
+    })
+    .webp({
+      quality: 60,
+    })
     .toBuffer();
 
   return compressedImageBuffer;
 }
 
-module.exports = { pictureFormat, convertPicture, compressProfileImage };
+module.exports = { pictureFormat, convertPostPicture, convertProfilePicture };
