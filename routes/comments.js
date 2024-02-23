@@ -2,25 +2,15 @@ const router = require("express").Router();
 const Comment = require("../models/Comment");
 const User = require("../models/User");
 const Post = require("../models/Post");
-const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const dotenv = require("dotenv");
+const { getImageSignedUrlS3 } = require("../modules/aws_s3");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: `.env.production` })
+  dotenv.config({ path: `.env.production` });
+} else {
+  dotenv.config({ path: `.env.development` });
 }
-else {
-  dotenv.config({ path: `.env.development` })
-}
-
-const s3 = new S3Client({
-  region: process.env.AWS_BUCKET_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
 
 // Create a comment
 router.post("/", async (req, res) => {
@@ -38,7 +28,9 @@ router.post("/", async (req, res) => {
 
   // Check if the author is the same as the post owner
   if (req.body.author === post.userId) {
-    return res.status(403).json({ message: "You can't comment your own post." });
+    return res
+      .status(403)
+      .json({ message: "You can't comment your own post." });
   }
 
   // //TODO - Uncomment the following code when the payment system is implemented
@@ -88,16 +80,9 @@ router.get("/:id", async (req, res) => {
     // Loop through comments and update profileImage URLs
     for (const comment of comments) {
       if (comment.author && comment.author.profileImage !== "") {
-        const command = new GetObjectCommand({
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: comment.author.profileImage,
-        });
-
-        const signedUrl = await getSignedUrl(s3, command, {
-          expiresIn: 3600,
-        });
-
-        comment.author.profileImage = signedUrl;
+        comment.author.profileImage = await getImageSignedUrlS3(
+          comment.author.profileImage
+        );
       }
     }
 
@@ -117,7 +102,9 @@ router.put("/:id", async (req, res) => {
     }
 
     if (req.body.author !== comment.author.toString()) {
-      return res.status(403).json({ message: "You can't update this comment." });
+      return res
+        .status(403)
+        .json({ message: "You can't update this comment." });
     }
 
     newComment = await Comment.findByIdAndUpdate(
@@ -145,7 +132,9 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ message: "Comment not found." });
     }
     if (req.body.author !== comment.author) {
-      return res.status(403).json({ message: "You can't delete this comment." });
+      return res
+        .status(403)
+        .json({ message: "You can't delete this comment." });
     }
 
     await Comment.findByIdAndDelete(req.params.id);

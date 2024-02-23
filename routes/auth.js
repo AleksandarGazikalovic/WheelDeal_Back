@@ -1,13 +1,12 @@
 const router = require("express").Router();
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
-const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const { getImageSignedUrlS3 } = require("../modules/aws_s3");
 const logoPath = "/images/logo.png";
 
 // dotenv.config();
@@ -20,14 +19,6 @@ if (process.env.NODE_ENV === "production") {
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
-});
-
-const s3 = new S3Client({
-  region: process.env.AWS_BUCKET_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
 });
 
 // Configure nodemailer for sending emails
@@ -281,12 +272,18 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ email: req.body.email });
 
     if (!user) {
-      return res.status(404).json({ message: "There is no existing user connnected with that email address." });
+      return res.status(404).json({
+        message:
+          "There is no existing user connnected with that email address.",
+      });
     }
 
     // Check if the user is verified
     if (!user.isAccountVerified) {
-      return res.status(403).json({ message: "Email not verified. Please check your email for the verification link." });
+      return res.status(403).json({
+        message:
+          "Email not verified. Please check your email for the verification link.",
+      });
     }
 
     // compare password
@@ -354,16 +351,7 @@ router.post("/login", async (req, res) => {
     const profileImage = user.profileImage;
 
     if (profileImage !== "") {
-      const command = new GetObjectCommand({
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: profileImage,
-      });
-
-      const signedUrl = await getSignedUrl(s3, command, {
-        expiresIn: 3600,
-      });
-
-      user.profileImage = signedUrl;
+      user.profileImage = await getImageSignedUrlS3(profileImage);
     }
 
     // Creates Secure Cookie with refresh token
@@ -439,7 +427,9 @@ router.put("/:id/verify", async (req, res) => {
       return res.status(500).json({ error: "Internal Server Error" });
     }
   } else {
-    return res.status(403).json({ message: "You can verify only your account!" });
+    return res
+      .status(403)
+      .json({ message: "You can verify only your account!" });
   }
 });
 

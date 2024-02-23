@@ -15,4 +15,12 @@ async function convertPicture(picture) {
   return convertedPicture;
 }
 
-module.exports = { pictureFormat, convertPicture };
+async function compressProfileImage(image) {
+  const compressedImageBuffer = await sharp(image)
+    .resize({ width: 200, height: 200 }) // Adjust the dimensions as needed
+    .toBuffer();
+
+  return compressedImageBuffer;
+}
+
+module.exports = { pictureFormat, convertPicture, compressProfileImage };

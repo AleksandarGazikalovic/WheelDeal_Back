@@ -1,18 +1,14 @@
 const router = require("express").Router();
 const Post = require("../models/Post");
 const User = require("../models/User");
-const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-} = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const dotenv = require("dotenv");
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
 
-const { convertPicture, pictureFormat } = require("../modules/pictures");
+const {
+  uploadPostImagesToS3,
+  getImageSignedUrlS3,
+} = require("../modules/aws_s3");
+const { verifyToken } = require("../modules/authentication");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -26,66 +22,6 @@ const upload = multer({
   storage: storage,
 });
 
-const randomImageName = (bytes = 32) =>
-  crypto.randomBytes(bytes).toString("hex");
-
-const s3 = new S3Client({
-  region: process.env.AWS_BUCKET_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
-
-// image uploading with compression
-const uploadImagesToS3 = async (files) => {
-  const imageKeys = [];
-
-  for (const file of files) {
-    const imageName = randomImageName();
-
-    // convert image to webp and compress it
-    const convertedPicture = await convertPicture(file.buffer);
-
-    const uploadParams = {
-      Bucket: process.env.S3_BUCKET_NAME,
-      Body: convertedPicture,
-      Key: imageName,
-      ContentType: pictureFormat,
-    };
-
-    const command = new PutObjectCommand(uploadParams);
-    await s3.send(command);
-
-    imageKeys.push(imageName);
-  }
-
-  return imageKeys;
-};
-
-// Middleware to verify JWT token
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!authHeader || !token) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    // add logic to detect if someone tampered with access token
-    if (err) {
-      if (err.name == "TokenExpiredError") {
-        return res.status(401).json({ message: "Access token expired" });
-      } else {
-        return res.status(401).json({
-          message: "Unauthorized, token signature usuccessfuly verified",
-        });
-      }
-    }
-    req.user = decoded;
-    next();
-  });
-};
-
 //create a post
 router.post(
   "/",
@@ -93,7 +29,7 @@ router.post(
   verifyToken,
   async (req, res) => {
     try {
-      const imageKeys = await uploadImagesToS3(req.files);
+      const imageKeys = await uploadPostImagesToS3(req.files);
 
       const newPost = new Post({
         images: imageKeys,
@@ -102,12 +38,7 @@ router.post(
       const savedPost = await newPost.save();
       const updatedImages = [];
       for (let i = 0; i < savedPost.images.length; i++) {
-        const getObjectParams = {
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: savedPost.images[i],
-        };
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        const url = await getImageSignedUrlS3(savedPost.images[i]);
         updatedImages.push(url);
       }
       savedPost.images = updatedImages;
@@ -127,7 +58,7 @@ router.put("/:id", upload.array("images[]", 10), async (req, res) => {
     if (post.userId === req.body.userId) {
       let imageKeys = [];
       if (req.files && req.files.length > 0) {
-        imageKeys = await uploadImagesToS3(req.files);
+        imageKeys = await uploadPostImagesToS3(req.files);
       } else {
         imageKeys = post.images;
       }
@@ -143,13 +74,7 @@ router.put("/:id", upload.array("images[]", 10), async (req, res) => {
       const updatedImages = [];
 
       for (let i = 0; i < updatedPost.images.length; i++) {
-        const getObjectParams = {
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: updatedPost.images[i],
-        };
-
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        const url = await getImageSignedUrlS3(updatedPost.images[i]);
         updatedImages.push(url);
       }
 
@@ -218,12 +143,7 @@ router.get("/:id", async (req, res) => {
     const post = await Post.findById(req.params.id);
     const updatedImages = [];
     for (let i = 0; i < post.images.length; i++) {
-      const getObjectParams = {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: post.images[i],
-      };
-      const command = new GetObjectCommand(getObjectParams);
-      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+      const url = await getImageSignedUrlS3(post.images[i]);
       updatedImages.push(url);
     }
     post.images = updatedImages;
@@ -241,12 +161,7 @@ router.get("/profile/:id", async (req, res) => {
       const updatedImages = [];
 
       for (let i = 0; i < post.images.length; i++) {
-        const getObjectParams = {
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: post.images[i],
-        };
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        const url = await getImageSignedUrlS3(post.images[i]);
         updatedImages.push(url);
       }
       post.images = updatedImages;
@@ -290,12 +205,7 @@ router.get("/liked/:id", async (req, res) => {
       const updatedImages = [];
 
       for (let i = 0; i < post.images.length; i++) {
-        const getObjectParams = {
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: post.images[i],
-        };
-        const command = new GetObjectCommand(getObjectParams);
-        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        const url = await getImageSignedUrlS3(post.images[i]);
         updatedImages.push(url);
       }
       post.images = updatedImages;
@@ -412,12 +322,7 @@ router.get("/filter/all", async (req, res) => {
         const updatedImages = [];
 
         for (let i = 0; i < post.images.length; i++) {
-          const getObjectParams = {
-            Bucket: process.env.S3_BUCKET_NAME,
-            Key: post.images[i],
-          };
-          const command = new GetObjectCommand(getObjectParams);
-          const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+          const url = await getImageSignedUrlS3(post.images[i]);
           updatedImages.push(url);
         }
         post.images = updatedImages;
@@ -440,20 +345,17 @@ router.get("/filter/all", async (req, res) => {
         const updatedImages = [];
 
         for (let i = 0; i < post.images.length; i++) {
-          const getObjectParams = {
-            Bucket: process.env.S3_BUCKET_NAME,
-            Key: post.images[i],
-          };
-          const command = new GetObjectCommand(getObjectParams);
-          const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+          const url = await getImageSignedUrlS3(post.images[i]);
           updatedImages.push(url);
         }
         post.images = updatedImages;
         return post;
       });
       const updatedPosts = await Promise.all(imagePromises);
-
+      // console.log(page * limit);
+      // console.log(totalPosts);
       const hasMore = page * limit < totalPosts;
+      // console.log(hasMore);
 
       res.status(200).json({ posts: updatedPosts, hasMore });
     }
