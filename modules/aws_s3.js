@@ -19,6 +19,8 @@ if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.development` });
 }
 
+const rootBucketFolder = process.env.ROOT_BUCKET_FOLDER;
+
 const randomImageName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
 
@@ -30,10 +32,32 @@ const s3 = new S3Client({
   },
 });
 
-async function getImageSignedUrlS3(profileImage) {
+async function getProfileImageSignedUrlS3(profileImage, userId) {
   const command = new GetObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
-    Key: profileImage,
+    Key: rootBucketFolder + "/" + "User_" + userId + "/" + profileImage,
+  });
+
+  const signedUrl = await getSignedUrl(s3, command, {
+    expiresIn: 3600,
+  });
+
+  return signedUrl;
+}
+
+async function getPostImageSignedUrlS3(profileImage, userId, postId) {
+  const command = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key:
+      rootBucketFolder +
+      "/" +
+      "User_" +
+      userId +
+      "/" +
+      "Post_" +
+      postId +
+      "/" +
+      profileImage,
   });
 
   const signedUrl = await getSignedUrl(s3, command, {
@@ -44,7 +68,7 @@ async function getImageSignedUrlS3(profileImage) {
 }
 
 // image uploading with compression
-const uploadPostImagesToS3 = async (files) => {
+const uploadPostImagesToS3 = async (files, userId, postId) => {
   const imageKeys = [];
 
   for (const file of files) {
@@ -56,7 +80,16 @@ const uploadPostImagesToS3 = async (files) => {
     const uploadParams = {
       Bucket: process.env.S3_BUCKET_NAME,
       Body: convertedPicture,
-      Key: imageName,
+      Key:
+        rootBucketFolder +
+        "/" +
+        "User_" +
+        userId +
+        "/" +
+        "Post_" +
+        postId +
+        "/" +
+        imageName,
       ContentType: pictureFormat,
     };
 
@@ -69,7 +102,7 @@ const uploadPostImagesToS3 = async (files) => {
   return imageKeys;
 };
 
-async function uploadProfileImageToS3(file, fileName) {
+async function uploadProfileImageToS3(file, fileName, userId) {
   const fileType = pictureFormat;
   const fileContent = file.buffer;
 
@@ -79,7 +112,7 @@ async function uploadProfileImageToS3(file, fileName) {
   // Upload the new profile image to your storage (e.g., S3)
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
-    Key: fileName,
+    Key: rootBucketFolder + "/" + "User_" + userId + "/" + fileName,
     Body: resizedImageBuffer,
     ContentType: fileType,
   });
@@ -87,17 +120,18 @@ async function uploadProfileImageToS3(file, fileName) {
   s3.send(command);
 }
 
-async function deleteImageFromS3(image) {
+async function deleteImageFromS3(image, userId) {
   const deleteCommand = new DeleteObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
-    Key: image,
+    Key: rootBucketFolder + "/" + "User_" + userId + "/" + image,
   });
   s3.send(deleteCommand);
 }
 
 module.exports = {
-  getImageSignedUrlS3,
+  getProfileImageSignedUrlS3,
   uploadPostImagesToS3,
   deleteImageFromS3,
   uploadProfileImageToS3,
+  getPostImageSignedUrlS3,
 };

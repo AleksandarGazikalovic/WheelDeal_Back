@@ -6,7 +6,7 @@ const dotenv = require("dotenv");
 
 const {
   uploadPostImagesToS3,
-  getImageSignedUrlS3,
+  getPostImageSignedUrlS3,
 } = require("../modules/aws_s3");
 const { verifyToken } = require("../modules/authentication");
 
@@ -29,16 +29,33 @@ router.post(
   verifyToken,
   async (req, res) => {
     try {
-      const imageKeys = await uploadPostImagesToS3(req.files);
-
-      const newPost = new Post({
-        images: imageKeys,
+      let newPost = new Post({
         ...req.body,
       });
-      const savedPost = await newPost.save();
+      let savedPost = await newPost.save();
+
+      const imageKeys = await uploadPostImagesToS3(
+        req.files,
+        req.body.userId,
+        savedPost.id
+      );
+
+      savedPost = await Post.findByIdAndUpdate(
+        savedPost.id,
+        {
+          images: imageKeys,
+          ...req.body,
+        },
+        { new: true }
+      );
+
       const updatedImages = [];
       for (let i = 0; i < savedPost.images.length; i++) {
-        const url = await getImageSignedUrlS3(savedPost.images[i]);
+        const url = await getPostImageSignedUrlS3(
+          savedPost.images[i],
+          req.body.userId,
+          savedPost.id
+        );
         updatedImages.push(url);
       }
       savedPost.images = updatedImages;
@@ -58,7 +75,11 @@ router.put("/:id", upload.array("images[]", 10), async (req, res) => {
     if (post.userId === req.body.userId) {
       let imageKeys = [];
       if (req.files && req.files.length > 0) {
-        imageKeys = await uploadPostImagesToS3(req.files);
+        imageKeys = await uploadPostImagesToS3(
+          req.files,
+          req.body.userId,
+          req.params.id
+        );
       } else {
         imageKeys = post.images;
       }
@@ -74,7 +95,11 @@ router.put("/:id", upload.array("images[]", 10), async (req, res) => {
       const updatedImages = [];
 
       for (let i = 0; i < updatedPost.images.length; i++) {
-        const url = await getImageSignedUrlS3(updatedPost.images[i]);
+        const url = await getPostImageSignedUrlS3(
+          updatedPost.images[i],
+          req.body.userId,
+          updatedPost.id
+        );
         updatedImages.push(url);
       }
 
@@ -97,6 +122,7 @@ router.delete("/:id", async (req, res) => {
     if (post.userId === req.body.userId) {
       try {
         await Post.findByIdAndDelete(req.params.id);
+        // TODO: delete post images from s3 bucket
         res.status(200).json({ message: "Post has been deleted!" });
       } catch (err) {
         res.status(500).json(err);
@@ -143,7 +169,11 @@ router.get("/:id", async (req, res) => {
     const post = await Post.findById(req.params.id);
     const updatedImages = [];
     for (let i = 0; i < post.images.length; i++) {
-      const url = await getImageSignedUrlS3(post.images[i]);
+      const url = await getPostImageSignedUrlS3(
+        post.images[i],
+        post.userId,
+        post.id
+      );
       updatedImages.push(url);
     }
     post.images = updatedImages;
@@ -161,7 +191,11 @@ router.get("/profile/:id", async (req, res) => {
       const updatedImages = [];
 
       for (let i = 0; i < post.images.length; i++) {
-        const url = await getImageSignedUrlS3(post.images[i]);
+        const url = await getPostImageSignedUrlS3(
+          post.images[i],
+          req.params.id,
+          post.id
+        );
         updatedImages.push(url);
       }
       post.images = updatedImages;
@@ -205,7 +239,11 @@ router.get("/liked/:id", async (req, res) => {
       const updatedImages = [];
 
       for (let i = 0; i < post.images.length; i++) {
-        const url = await getImageSignedUrlS3(post.images[i]);
+        const url = await getPostImageSignedUrlS3(
+          post.images[i],
+          req.params.id,
+          post.id
+        );
         updatedImages.push(url);
       }
       post.images = updatedImages;
@@ -322,7 +360,11 @@ router.get("/filter/all", async (req, res) => {
         const updatedImages = [];
 
         for (let i = 0; i < post.images.length; i++) {
-          const url = await getImageSignedUrlS3(post.images[i]);
+          const url = await getPostImageSignedUrlS3(
+            post.images[i],
+            post.userId,
+            post.id
+          );
           updatedImages.push(url);
         }
         post.images = updatedImages;
@@ -345,7 +387,11 @@ router.get("/filter/all", async (req, res) => {
         const updatedImages = [];
 
         for (let i = 0; i < post.images.length; i++) {
-          const url = await getImageSignedUrlS3(post.images[i]);
+          const url = await getPostImageSignedUrlS3(
+            post.images[i],
+            post.userId,
+            post.id
+          );
           updatedImages.push(url);
         }
         post.images = updatedImages;

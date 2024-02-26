@@ -4,7 +4,7 @@ const multer = require("multer");
 const crypto = require("crypto");
 const dotenv = require("dotenv");
 const {
-  getImageSignedUrlS3,
+  getProfileImageSignedUrlS3,
   deleteImageFromS3,
   uploadProfileImageToS3,
 } = require("../modules/aws_s3");
@@ -72,7 +72,10 @@ router.get("/", verifyToken, async (req, res) => {
     const profileImage = other.profileImage;
 
     if (profileImage !== "") {
-      other.profileImage = await getImageSignedUrlS3(profileImage);
+      other.profileImage = await getProfileImageSignedUrlS3(
+        profileImage,
+        req.user.id
+      );
     }
     res.status(200).json(other);
   } catch (err) {
@@ -89,7 +92,10 @@ router.get("/:id", async (req, res) => {
     const profileImage = other.profileImage;
 
     if (profileImage !== "") {
-      other.profileImage = await getImageSignedUrlS3(profileImage);
+      other.profileImage = await getProfileImageSignedUrlS3(
+        profileImage,
+        req.params.id
+      );
     }
     res.status(200).json(other);
   } catch (err) {
@@ -103,13 +109,13 @@ router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
   if (req.body._id === req.params.id || req.body.isAdmin === "true") {
     try {
       const file = req.file;
-      const fileName = randomImageName();
-      await uploadProfileImageToS3(file, fileName);
+      const fileName = randomImageName() + "_profile_photo";
+      await uploadProfileImageToS3(file, fileName, req.body._id);
 
       let user = await User.findById(req.params.id);
       const oldProfileImage = user.profileImage;
       if (oldProfileImage !== "") {
-        await deleteImageFromS3(oldProfileImage);
+        await deleteImageFromS3(oldProfileImage, req.params.id);
       }
       // Update only the profileImage field in the user object
       user = await User.findByIdAndUpdate(
@@ -119,7 +125,10 @@ router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
       );
 
       if (user.profileImage !== "") {
-        const signedUrl = await getImageSignedUrlS3(user.profileImage);
+        const signedUrl = await getProfileImageSignedUrlS3(
+          user.profileImage,
+          req.params.id
+        );
         res.status(200).json(signedUrl);
       }
     } catch (err) {

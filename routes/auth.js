@@ -6,7 +6,7 @@ const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const { getImageSignedUrlS3 } = require("../modules/aws_s3");
+const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
 const logoPath = "/images/logo.png";
 
 // dotenv.config();
@@ -351,7 +351,10 @@ router.post("/login", async (req, res) => {
     const profileImage = user.profileImage;
 
     if (profileImage !== "") {
-      user.profileImage = await getImageSignedUrlS3(profileImage);
+      user.profileImage = await getProfileImageSignedUrlS3(
+        profileImage,
+        user.id
+      );
     }
 
     // Creates Secure Cookie with refresh token

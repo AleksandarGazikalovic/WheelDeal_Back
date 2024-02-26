@@ -3,7 +3,7 @@ const Comment = require("../models/Comment");
 const User = require("../models/User");
 const Post = require("../models/Post");
 const dotenv = require("dotenv");
-const { getImageSignedUrlS3 } = require("../modules/aws_s3");
+const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -80,8 +80,9 @@ router.get("/:id", async (req, res) => {
     // Loop through comments and update profileImage URLs
     for (const comment of comments) {
       if (comment.author && comment.author.profileImage !== "") {
-        comment.author.profileImage = await getImageSignedUrlS3(
-          comment.author.profileImage
+        comment.author.profileImage = await getProfileImageSignedUrlS3(
+          comment.author.profileImage,
+          comment.author.toString()
         );
       }
     }
