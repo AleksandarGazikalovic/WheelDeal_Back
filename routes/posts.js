@@ -241,7 +241,7 @@ router.get("/liked/:id", async (req, res) => {
       for (let i = 0; i < post.images.length; i++) {
         const url = await getPostImageSignedUrlS3(
           post.images[i],
-          req.params.id,
+          post.userId,
           post.id
         );
         updatedImages.push(url);
