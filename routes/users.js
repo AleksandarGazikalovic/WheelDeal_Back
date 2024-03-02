@@ -26,7 +26,7 @@ const randomImageName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
 
 //update user
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyToken, async (req, res) => {
   if (req.body._id === req.params.id || req.body.isAdmin === "true") {
     delete req.body.profileImage;
     try {
@@ -105,41 +105,46 @@ router.get("/:id", async (req, res) => {
 });
 
 //upload profile picture
-router.post("/:id/upload", upload.single("profileImage"), async (req, res) => {
-  if (req.body._id === req.params.id || req.body.isAdmin === "true") {
-    try {
-      const file = req.file;
-      const fileName = randomImageName() + "_profile_photo";
-      await uploadProfileImageToS3(file, fileName, req.body._id);
+router.post(
+  "/:id/upload",
+  upload.single("profileImage"),
+  verifyToken,
+  async (req, res) => {
+    if (req.body._id === req.params.id || req.body.isAdmin === "true") {
+      try {
+        const file = req.file;
+        const fileName = randomImageName() + "_profile_photo";
+        await uploadProfileImageToS3(file, fileName, req.body._id);
 
-      let user = await User.findById(req.params.id);
-      const oldProfileImage = user.profileImage;
-      if (oldProfileImage !== "") {
-        await deleteImageFromS3(oldProfileImage, req.params.id);
-      }
-      // Update only the profileImage field in the user object
-      user = await User.findByIdAndUpdate(
-        req.params.id,
-        { profileImage: fileName },
-        { new: true } // This option returns the updated document
-      );
-
-      if (user.profileImage !== "") {
-        const signedUrl = await getProfileImageSignedUrlS3(
-          user.profileImage,
-          req.params.id
+        let user = await User.findById(req.params.id);
+        const oldProfileImage = user.profileImage;
+        if (oldProfileImage !== "") {
+          await deleteImageFromS3(oldProfileImage, req.params.id);
+        }
+        // Update only the profileImage field in the user object
+        user = await User.findByIdAndUpdate(
+          req.params.id,
+          { profileImage: fileName },
+          { new: true } // This option returns the updated document
         );
-        res.status(200).json(signedUrl);
+
+        if (user.profileImage !== "") {
+          const signedUrl = await getProfileImageSignedUrlS3(
+            user.profileImage,
+            req.params.id
+          );
+          res.status(200).json(signedUrl);
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Internal Server Error" });
       }
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Internal Server Error" });
+    } else {
+      return res
+        .status(403)
+        .json({ message: "You can update only your account!" });
     }
-  } else {
-    return res
-      .status(403)
-      .json({ message: "You can update only your account!" });
   }
-});
+);
 
 module.exports = router;

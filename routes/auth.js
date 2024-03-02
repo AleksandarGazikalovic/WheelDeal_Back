@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
+const { verifyToken } = require("../modules/authentication");
 const logoPath = "/images/logo.png";
 
 // dotenv.config();
@@ -411,7 +412,7 @@ router.post("/logout", async (req, res) => {
 });
 
 //verify user
-router.put("/:id/verify", async (req, res) => {
+router.put("/:id/verify", verifyToken, async (req, res) => {
   if (req.body.userId === req.params.id || req.body.isAdmin) {
     try {
       const user = await User.findByIdAndUpdate(req.params.id, {

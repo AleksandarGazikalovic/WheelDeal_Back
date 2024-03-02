@@ -69,51 +69,56 @@ router.post(
 );
 
 //update a post
-router.put("/:id", upload.array("images[]", 10), async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (post.userId === req.body.userId) {
-      let imageKeys = [];
-      if (req.files && req.files.length > 0) {
-        imageKeys = await uploadPostImagesToS3(
-          req.files,
-          req.body.userId,
-          req.params.id
+router.put(
+  "/:id",
+  upload.array("images[]", 10),
+  verifyToken,
+  async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.id);
+      if (post.userId === req.body.userId) {
+        let imageKeys = [];
+        if (req.files && req.files.length > 0) {
+          imageKeys = await uploadPostImagesToS3(
+            req.files,
+            req.body.userId,
+            req.params.id
+          );
+        } else {
+          imageKeys = post.images;
+        }
+        const updatedPost = await Post.findByIdAndUpdate(
+          req.params.id,
+          {
+            images: imageKeys,
+            ...req.body,
+          },
+          { new: true }
         );
+
+        const updatedImages = [];
+
+        for (let i = 0; i < updatedPost.images.length; i++) {
+          const url = await getPostImageSignedUrlS3(
+            updatedPost.images[i],
+            req.body.userId,
+            updatedPost.id
+          );
+          updatedImages.push(url);
+        }
+
+        updatedPost.images = updatedImages;
+
+        res.status(200).json(updatedPost);
       } else {
-        imageKeys = post.images;
+        res.status(401).json({ message: "You can only update your post!" });
       }
-      const updatedPost = await Post.findByIdAndUpdate(
-        req.params.id,
-        {
-          images: imageKeys,
-          ...req.body,
-        },
-        { new: true }
-      );
-
-      const updatedImages = [];
-
-      for (let i = 0; i < updatedPost.images.length; i++) {
-        const url = await getPostImageSignedUrlS3(
-          updatedPost.images[i],
-          req.body.userId,
-          updatedPost.id
-        );
-        updatedImages.push(url);
-      }
-
-      updatedPost.images = updatedImages;
-
-      res.status(200).json(updatedPost);
-    } else {
-      res.status(401).json({ message: "You can only update your post!" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal Server Error" });
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal Server Error" });
   }
-});
+);
 
 //delete a post
 router.delete("/:id", async (req, res) => {
@@ -136,7 +141,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 //like a post
-router.put("/:id/like", async (req, res) => {
+router.put("/:id/like", verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     const user = await User.findById(req.body.userId);

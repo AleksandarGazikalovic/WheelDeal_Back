@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Post = require("../models/Post");
 const dotenv = require("dotenv");
 const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
+const { verifyToken } = require("../modules/authentication");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -13,7 +14,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Create a comment
-router.post("/", async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   // Check if the user exists
   const user = await User.findById(req.body.author);
   if (!user) {
@@ -95,7 +96,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update a comment
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyToken, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) {
