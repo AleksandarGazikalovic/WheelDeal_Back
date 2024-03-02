@@ -144,10 +144,11 @@ router.delete("/:id", async (req, res) => {
 router.put("/:id/like", verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    const user = await User.findById(req.body.userId);
+    let user = await User.findById(req.body.userId);
     if (!user.likedPosts.includes(post._id)) {
       try {
         await user.updateOne({ $push: { likedPosts: post._id.toString() } });
+        user.likedPosts.push(post._id.toString());
         res.status(200).json(user.likedPosts);
       } catch (err) {
         console.log(err);
@@ -156,6 +157,9 @@ router.put("/:id/like", verifyToken, async (req, res) => {
     } else {
       try {
         await user.updateOne({ $pull: { likedPosts: post._id.toString() } });
+        user.likedPosts = user.likedPosts.filter(
+          (pid) => pid.toString() !== post._id.toString()
+        );
         res.status(200).json(user.likedPosts);
       } catch (err) {
         console.log(err);
@@ -218,7 +222,6 @@ router.get("/profile/:id", async (req, res) => {
 router.get("/liked/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
-    console.log(user.likedPosts);
 
     // Filter out deleted posts from likedPosts
     const validLikedPosts = await Promise.all(
@@ -230,7 +233,6 @@ router.get("/liked/:id", async (req, res) => {
 
     // Remove null entries (deleted posts) from the array
     user.likedPosts = validLikedPosts.filter((postId) => postId !== null);
-    console.log(user.likedPosts);
 
     // Save the updated likedPosts array
     await user.save();
