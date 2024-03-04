@@ -15,6 +15,7 @@ const fs = require("fs");
 const bodyParser = require("body-parser");
 const morganBody = require("morgan-body");
 const cookieParser = require("cookie-parser");
+const scheduler = require("./modules/scheduler");
 
 // dotenv.config();
 //MongoDB Connection, to prod or dev database
