@@ -4,7 +4,7 @@ const User = require("../models/User");
 const Post = require("../models/Post");
 const dotenv = require("dotenv");
 const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
-const { verifyToken } = require("../modules/authentication");
+const { verifyToken } = require("../middleware/auth");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {

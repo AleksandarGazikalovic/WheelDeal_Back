@@ -7,7 +7,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
-const { verifyToken } = require("../modules/authentication");
+const { verifyToken } = require("../middleware/auth");
 const logoPath = "/images/logo.png";
 
 // dotenv.config();

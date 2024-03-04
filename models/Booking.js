@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const paymentSchema = new mongoose.Schema({
+const bookingSchema = new mongoose.Schema({
   hostId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -16,19 +16,19 @@ const paymentSchema = new mongoose.Schema({
     ref: "Post",
     required: true,
   },
-  stripePaymentIntentId: {
-    type: String,
+  startDate: {
+    type: Date,
     required: true,
   },
-  takenDates: {
-    type: [Date],
+  endDate: {
+    type: Date,
     required: true,
   },
   transactionDate: {
     type: Date,
     default: Date.now,
   },
-  amount: {
+  price: {
     type: Number,
     required: true,
   },
@@ -39,4 +39,4 @@ const paymentSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model("Payment", paymentSchema);
+module.exports = mongoose.model("Booking", bookingSchema);
