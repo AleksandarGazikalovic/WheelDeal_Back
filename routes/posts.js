@@ -126,7 +126,10 @@ router.delete("/:id", async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (post.userId === req.body.userId) {
       try {
-        await Post.findByIdAndDelete(req.params.id);
+        //await Post.findByIdAndDelete(req.params.id);
+        await Post.findByIdAndUpdate(post.id, {
+          isArchived: true,
+        });
         // TODO: delete post images from s3 bucket
         res.status(200).json({ message: "Post has been deleted!" });
       } catch (err) {
@@ -175,7 +178,14 @@ router.put("/:id/like", verifyToken, async (req, res) => {
 //get a post
 router.get("/:id", async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    //console.log(req.params.id);
+    const post = (
+      await Post.find({ _id: req.params.id, isArchived: false })
+    )[0];
+    //console.log(post);
+    if (post == null) {
+      return res.status(404).json({ message: "Post can't be found" });
+    }
     const updatedImages = [];
     for (let i = 0; i < post.images.length; i++) {
       const url = await getPostImageSignedUrlS3(
@@ -195,7 +205,7 @@ router.get("/:id", async (req, res) => {
 //get all user posts
 router.get("/profile/:id", async (req, res) => {
   try {
-    const posts = await Post.find({ userId: req.params.id });
+    const posts = await Post.find({ userId: req.params.id, isArchived: false });
     const imagePromises = posts.map(async (post) => {
       const updatedImages = [];
 
@@ -227,7 +237,7 @@ router.get("/liked/:id", async (req, res) => {
     const validLikedPosts = await Promise.all(
       user.likedPosts.map(async (postId) => {
         const post = await Post.findById(postId);
-        return post !== null ? postId : null;
+        return post !== null && post.isArchived === false ? postId : null;
       })
     );
 
@@ -354,6 +364,13 @@ router.get("/filter/all", async (req, res) => {
     }
     //if there are filters, aggregate the posts
     if (filters.length > 0) {
+      filters.push({
+        $match: {
+          isArchived: {
+            $eq: false,
+          },
+        },
+      });
       const aggregationPipeline = filters;
       const totalFilteredPosts = await Post.countDocuments({
         $and: aggregationPipeline.map((filter) => filter.$match),
@@ -370,7 +387,7 @@ router.get("/filter/all", async (req, res) => {
           const url = await getPostImageSignedUrlS3(
             post.images[i],
             post.userId,
-            post.id
+            post._id.toString()
           );
           updatedImages.push(url);
         }
@@ -386,10 +403,9 @@ router.get("/filter/all", async (req, res) => {
       //if there are no filters, return all posts
       const totalPosts = await Post.countDocuments();
 
-      const posts = await Post.find()
+      const posts = await Post.find({ isArchived: false })
         .skip((page - 1) * limit)
         .limit(limit);
-
       const imagePromises = posts.map(async (post) => {
         const updatedImages = [];
 
