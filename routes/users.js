@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const dotenv = require("dotenv");
 const {
   getProfileImageSignedUrlS3,
-  deleteImageFromS3,
+  deleteProfileImageFromS3,
   uploadProfileImageToS3,
 } = require("../modules/aws_s3");
 const { verifyToken } = require("../modules/authentication");
@@ -119,7 +119,7 @@ router.post(
         let user = await User.findById(req.params.id);
         const oldProfileImage = user.profileImage;
         if (oldProfileImage !== "") {
-          await deleteImageFromS3(oldProfileImage, req.params.id);
+          await deleteProfileImageFromS3(oldProfileImage, req.params.id);
         }
         // Update only the profileImage field in the user object
         user = await User.findByIdAndUpdate(

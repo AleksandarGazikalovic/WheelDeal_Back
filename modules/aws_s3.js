@@ -6,6 +6,7 @@ const {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } = require("@aws-sdk/client-s3");
 const {
   convertPostPicture,
@@ -120,7 +121,7 @@ async function uploadProfileImageToS3(file, fileName, userId) {
   s3.send(command);
 }
 
-async function deleteImageFromS3(image, userId) {
+async function deleteProfileImageFromS3(image, userId) {
   const deleteCommand = new DeleteObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
     Key: rootBucketFolder + "/" + "User_" + userId + "/" + image,
@@ -128,10 +129,45 @@ async function deleteImageFromS3(image, userId) {
   s3.send(deleteCommand);
 }
 
+async function deletePostImagesFromS3(userId, postId) {
+  const command = new ListObjectsV2Command({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Delimiter: "/",
+    Prefix:
+      rootBucketFolder + "/" + "User_" + userId + "/" + "Post_" + postId + "/",
+    MaxKeys: 1000,
+  });
+
+  try {
+    let isTruncated = true;
+    let contents = [];
+
+    while (isTruncated) {
+      const { Contents, IsTruncated, NextContinuationToken } = await s3.send(
+        command
+      );
+      Contents.map((c) => contents.push(c.Key));
+      isTruncated = IsTruncated;
+      command.input.ContinuationToken = NextContinuationToken;
+    }
+
+    for (let image of contents) {
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: image,
+      });
+      s3.send(deleteCommand);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 module.exports = {
   getProfileImageSignedUrlS3,
-  uploadPostImagesToS3,
-  deleteImageFromS3,
-  uploadProfileImageToS3,
   getPostImageSignedUrlS3,
+  uploadProfileImageToS3,
+  uploadPostImagesToS3,
+  deleteProfileImageFromS3,
+  deletePostImagesFromS3,
 };
