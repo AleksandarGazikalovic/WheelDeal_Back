@@ -17,6 +17,7 @@ const bodyParser = require("body-parser");
 const morganBody = require("morgan-body");
 const cookieParser = require("cookie-parser");
 const scheduler = require("./modules/scheduler");
+const Post = require("./models/Post");
 
 // dotenv.config();
 //MongoDB Connection, to prod or dev database
@@ -79,10 +80,39 @@ if (process.env.NODE_ENV === "production") {
 
   server.listen(8800, () => {
     console.log("HTTPS Server started in production!");
+
+    // Will create index in production for collection 'posts', same as the current index on dev for that same collection
+    // Function fires only once, if index already exists it does nothing
+    Post.collection.createIndex({
+      from: 1,
+      to: 1,
+      price: 1,
+      "location.searchStreet": 1,
+      "location.searchCity": 1,
+      isArchived: 1,
+      brand: 1,
+    });
   });
 } else {
   // If not in production, use regular HTTP
   app.listen(8800, () => {
     console.log("HTTP Server started in development!");
+    // Post.collection.createIndex({
+    //   from: 1,
+    //   to: 1,
+    //   price: 1,
+    //   "location.searchStreet": 1,
+    //   "location.searchCity": 1,
+    //   isArchived: 1,
+    //   brand: 1,
+    // });
+
+    // Post.collection.getIndexes().then((result) => {
+    //   console.log(result);
+    // });
+
+    // Post.collection.dropIndex(
+    //   "from_1_to_1_price_1_location.searchStreet_1_location.searchCity_1_isArchived_1_brand_1"
+    // );
   });
 }
