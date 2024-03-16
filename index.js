@@ -16,7 +16,7 @@ const fs = require("fs");
 const bodyParser = require("body-parser");
 const morganBody = require("morgan-body");
 const cookieParser = require("cookie-parser");
-const scheduler = require("./modules/scheduler");
+const scheduler = require("./modules/scheduler/index");
 const Post = require("./models/Post");
 
 // dotenv.config();
