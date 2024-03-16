@@ -9,6 +9,8 @@ const {
   getPostImageSignedUrlS3,
 } = require("../modules/aws_s3");
 const { verifyToken } = require("../middleware/auth");
+const { transliterate } = require("../modules/transliteration");
+const { default: mongoose } = require("mongoose");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -29,9 +31,33 @@ router.post(
   verifyToken,
   async (req, res) => {
     try {
+      let searchAddress = await transliterate(req.body.location.address);
+      let addressInfo = searchAddress.split(", ");
+      let searchStreet = "";
+      let searchCity = "";
+      if (addressInfo.length > 2) {
+        // if we have data about both street and city, save them both
+        searchStreet = addressInfo[0];
+        searchCity = addressInfo[1];
+      } else {
+        // if we have data only about the city, save only the city/place
+        searchCity = addressInfo[0];
+      }
+      console.log(searchStreet);
+      console.log(searchCity);
+      // return res.status(500).json({ message: "Internal Server Error" });
+
       let newPost = new Post({
         ...req.body,
+        location: {
+          address: req.body.location.address,
+          searchAddress: searchAddress,
+          searchStreet: searchStreet,
+          searchCity: searchCity,
+          latLng: req.body.location.latLng,
+        },
       });
+
       let savedPost = await newPost.save();
 
       const imageKeys = await uploadPostImagesToS3(
@@ -44,7 +70,6 @@ router.post(
         savedPost.id,
         {
           images: imageKeys,
-          ...req.body,
         },
         { new: true }
       );
@@ -126,7 +151,10 @@ router.delete("/:id", async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (post.userId === req.body.userId) {
       try {
-        await Post.findByIdAndDelete(req.params.id);
+        //await Post.findByIdAndDelete(req.params.id);
+        await Post.findByIdAndUpdate(post.id, {
+          isArchived: true,
+        });
         // TODO: delete post images from s3 bucket
         res.status(200).json({ message: "Post has been deleted!" });
       } catch (err) {
@@ -175,7 +203,14 @@ router.put("/:id/like", verifyToken, async (req, res) => {
 //get a post
 router.get("/:id", async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    //console.log(req.params.id);
+    const post = (
+      await Post.find({ _id: req.params.id, isArchived: false })
+    )[0];
+    //console.log(post);
+    if (post == null) {
+      return res.status(404).json({ message: "Post can't be found" });
+    }
     const updatedImages = [];
     for (let i = 0; i < post.images.length; i++) {
       const url = await getPostImageSignedUrlS3(
@@ -195,7 +230,7 @@ router.get("/:id", async (req, res) => {
 //get all user posts
 router.get("/profile/:id", async (req, res) => {
   try {
-    const posts = await Post.find({ userId: req.params.id });
+    const posts = await Post.find({ userId: req.params.id, isArchived: false });
     const imagePromises = posts.map(async (post) => {
       const updatedImages = [];
 
@@ -227,7 +262,7 @@ router.get("/liked/:id", async (req, res) => {
     const validLikedPosts = await Promise.all(
       user.likedPosts.map(async (postId) => {
         const post = await Post.findById(postId);
-        return post !== null ? postId : null;
+        return post !== null && post.isArchived === false ? postId : null;
       })
     );
 
@@ -272,75 +307,114 @@ router.get("/filter/all", async (req, res) => {
     const page = req.query.page || 1;
     const limit = req.query.limit || 12;
 
-    // Step 2: Start Date Filters
+    // Step 1: Start Date Filters
+    let startDate = "";
     if (
       req.query.startDate &&
       req.query.startDate !== "" &&
       req.query.startDate !== "undefined"
     ) {
-      filters.push({
-        $match: {
-          from: { $gte: new Date(req.query.startDate) },
-        },
-      });
+      startDate = req.query.startDate;
+    } else {
+      startDate = "1970-01-01";
     }
+    console.log(startDate);
+    filters.push({
+      $match: {
+        from: { $gte: new Date(startDate) },
+      },
+    });
 
-    // Step 3: End Date Filters
+    // Step 2: End Date Filters
+    let endDate = "";
     if (
       req.query.endDate &&
       req.query.endDate !== "" &&
       req.query.endDate !== "undefined"
     ) {
-      filters.push({
-        $match: {
-          to: { $lte: new Date(req.query.endDate) },
-        },
-      });
+      endDate = req.query.endDate;
+    } else {
+      endDate = "2100-01-01";
     }
+    console.log(endDate);
+    filters.push({
+      $match: {
+        to: { $lte: new Date(endDate) },
+      },
+    });
 
-    // Step 4: Start Price Filters
+    // Step 3: Start Price Filters
+    let startPrice = 1;
     if (
       req.query.startPrice &&
       req.query.startPrice !== "" &&
       req.query.startPrice !== "undefined"
     ) {
-      filters.push({
-        $match: {
-          price: {
-            $gte: parseFloat(req.query.startPrice),
-          },
-        },
-      });
+      startPrice = req.query.startPrice;
     }
+    console.log(startPrice);
+    filters.push({
+      $match: {
+        price: {
+          $gte: parseFloat(startPrice),
+        },
+      },
+    });
 
-    // Step 5: End Price Filters
+    // Step 4: End Price Filters
+    let endPrice = 100000;
     if (
       req.query.endPrice &&
       req.query.endPrice !== "" &&
       req.query.endPrice !== "undefined"
     ) {
-      filters.push({
-        $match: {
-          price: {
-            $lte: parseFloat(req.query.endPrice),
-          },
-        },
-      });
+      endPrice = req.query.endPrice;
     }
+    console.log(endPrice);
+    filters.push({
+      $match: {
+        price: {
+          $lte: parseFloat(endPrice),
+        },
+      },
+    });
 
-    // Step 4: Location and Brand Filters
+    // Step 5: Location and Brand Filters
+    let searchAddress = "";
     if (
       req.query.location &&
       req.query.location !== "" &&
       req.query.location !== "undefined"
     ) {
-      filters.push({
-        $match: {
-          "location.address": { $regex: req.query.location, $options: "i" },
-        },
-      });
+      searchAddress = await transliterate(req.query.location);
+      //console.log(searchAddress);
     }
+    filters.push({
+      //
+      $match: {
+        $or: [
+          {
+            "location.searchStreet": { $regex: "^" + "" },
+            "location.searchCity": { $regex: "^" + searchAddress },
+          },
+          {
+            "location.searchStreet": { $regex: "^" + searchAddress },
+            "location.searchCity": { $regex: "^" + "" },
+          },
+        ],
+      },
+    });
 
+    // Step 6: return only non-archived posts
+    filters.push({
+      $match: {
+        isArchived: {
+          $eq: false,
+        },
+      },
+    });
+
+    // Step 7: Add brand for search
     if (
       req.query.brand &&
       req.query.brand !== "" &&
@@ -352,17 +426,46 @@ router.get("/filter/all", async (req, res) => {
         },
       });
     }
+
     //if there are filters, aggregate the posts
+    //console.log(filters);
     if (filters.length > 0) {
-      const aggregationPipeline = filters;
+      let aggregationPipeline = filters;
+
       const totalFilteredPosts = await Post.countDocuments({
         $and: aggregationPipeline.map((filter) => filter.$match),
       });
 
-      const posts = await Post.aggregate(aggregationPipeline)
-        .skip((page - 1) * limit)
-        .limit(limit);
+      console.log(totalFilteredPosts);
+      let startTime = new Date();
+      const posts =
+        // await Post
+        //   .aggregate(aggregationPipeline)
+        //   .skip((page - 1) * limit)
+        //   .limit(limit);
+        await Post.find({
+          $and: aggregationPipeline.map((filter) => filter.$match),
+        })
+          .skip((page - 1) * limit)
+          .limit(limit);
 
+      let endTime = new Date();
+      console.log("Execution time: " + (endTime - startTime) + " milliseconds");
+      //startTime = new Date();
+      // console.log(
+      //   // await Post.aggregate(aggregationPipeline)
+      //   //   .skip((page - 1) * limit)
+      //   //   .limit(limit)
+
+      //   await Post.find({
+      //     $and: aggregationPipeline.map((filter) => filter.$match),
+      //   })
+      //     .skip((page - 1) * limit)
+      //     .limit(limit)
+      //     .explain("executionStats")
+      // );
+      //endTime = new Date();
+      //console.log("Execution time: " + (endTime - startTime) + " milliseconds");
       const imagePromises = posts.map(async (post) => {
         const updatedImages = [];
 
@@ -370,7 +473,7 @@ router.get("/filter/all", async (req, res) => {
           const url = await getPostImageSignedUrlS3(
             post.images[i],
             post.userId,
-            post.id
+            post._id.toString()
           );
           updatedImages.push(url);
         }
@@ -380,35 +483,6 @@ router.get("/filter/all", async (req, res) => {
       const updatedPosts = await Promise.all(imagePromises);
 
       const hasMore = page * limit < totalFilteredPosts;
-
-      res.status(200).json({ posts: updatedPosts, hasMore });
-    } else {
-      //if there are no filters, return all posts
-      const totalPosts = await Post.countDocuments();
-
-      const posts = await Post.find()
-        .skip((page - 1) * limit)
-        .limit(limit);
-
-      const imagePromises = posts.map(async (post) => {
-        const updatedImages = [];
-
-        for (let i = 0; i < post.images.length; i++) {
-          const url = await getPostImageSignedUrlS3(
-            post.images[i],
-            post.userId,
-            post.id
-          );
-          updatedImages.push(url);
-        }
-        post.images = updatedImages;
-        return post;
-      });
-      const updatedPosts = await Promise.all(imagePromises);
-      // console.log(page * limit);
-      // console.log(totalPosts);
-      const hasMore = page * limit < totalPosts;
-      // console.log(hasMore);
 
       res.status(200).json({ posts: updatedPosts, hasMore });
     }

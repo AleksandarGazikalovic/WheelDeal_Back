@@ -51,6 +51,16 @@ const PostSchema = new mongoose.Schema(
         type: String,
         required: true,
       },
+      searchAddress: {
+        type: String,
+        required: true,
+      },
+      searchStreet: {
+        type: String,
+      },
+      searchCity: {
+        type: String,
+      },
       latLng: {
         lat: {
           type: Number,
@@ -75,6 +85,10 @@ const PostSchema = new mongoose.Schema(
       required: true,
     },
     isRented: {
+      type: Boolean,
+      default: false,
+    },
+    isArchived: {
       type: Boolean,
       default: false,
     },
