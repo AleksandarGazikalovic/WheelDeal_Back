@@ -308,76 +308,66 @@ router.get("/filter/all", async (req, res) => {
     const limit = req.query.limit || 12;
 
     // Step 1: Start Date Filters
-    let startDate = "";
     if (
       req.query.startDate &&
       req.query.startDate !== "" &&
       req.query.startDate !== "undefined"
     ) {
-      startDate = req.query.startDate;
-    } else {
-      startDate = "1970-01-01";
+      const startDate = req.query.startDate;
+      // console.log(startDate);
+      filters.push({
+        $match: {
+          from: { $gte: new Date(startDate) },
+        },
+      });
     }
-    console.log(startDate);
-    filters.push({
-      $match: {
-        from: { $gte: new Date(startDate) },
-      },
-    });
 
     // Step 2: End Date Filters
-    let endDate = "";
     if (
       req.query.endDate &&
       req.query.endDate !== "" &&
       req.query.endDate !== "undefined"
     ) {
-      endDate = req.query.endDate;
-    } else {
-      endDate = "2100-01-01";
+      const endDate = req.query.endDate;
+      // console.log(endDate);
+      filters.push({
+        $match: {
+          to: { $lte: new Date(endDate) },
+        },
+      });
     }
-    console.log(endDate);
-    filters.push({
-      $match: {
-        to: { $lte: new Date(endDate) },
-      },
-    });
 
     // Step 3: Start Price Filters
-    let startPrice = 1;
     if (
       req.query.startPrice &&
       req.query.startPrice !== "" &&
       req.query.startPrice !== "undefined"
     ) {
-      startPrice = req.query.startPrice;
-    }
-    console.log(startPrice);
-    filters.push({
-      $match: {
-        price: {
-          $gte: parseFloat(startPrice),
+      const startPrice = req.query.startPrice;
+      filters.push({
+        $match: {
+          price: {
+            $gte: parseFloat(startPrice),
+          },
         },
-      },
-    });
+      });
+    }
 
     // Step 4: End Price Filters
-    let endPrice = 100000;
     if (
       req.query.endPrice &&
       req.query.endPrice !== "" &&
       req.query.endPrice !== "undefined"
     ) {
-      endPrice = req.query.endPrice;
-    }
-    console.log(endPrice);
-    filters.push({
-      $match: {
-        price: {
-          $lte: parseFloat(endPrice),
+      const endPrice = req.query.endPrice;
+      filters.push({
+        $match: {
+          price: {
+            $lte: parseFloat(endPrice),
+          },
         },
-      },
-    });
+      });
+    }
 
     // Step 5: Location and Brand Filters
     let searchAddress = "";
@@ -387,7 +377,6 @@ router.get("/filter/all", async (req, res) => {
       req.query.location !== "undefined"
     ) {
       searchAddress = await transliterate(req.query.location);
-      //console.log(searchAddress);
     }
     filters.push({
       //
@@ -415,17 +404,19 @@ router.get("/filter/all", async (req, res) => {
     });
 
     // Step 7: Add brand for search
+    let brand = "";
     if (
       req.query.brand &&
       req.query.brand !== "" &&
       req.query.brand !== "undefined"
     ) {
-      filters.push({
-        $match: {
-          brand: { $regex: req.query.brand, $options: "i" },
-        },
-      });
+      brand = req.query.brand;
     }
+    filters.push({
+      $match: {
+        brand: { $regex: "^" + brand },
+      },
+    });
 
     //if there are filters, aggregate the posts
     //console.log(filters);

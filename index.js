@@ -84,13 +84,13 @@ if (process.env.NODE_ENV === "production") {
     // Will create index in production for collection 'posts', same as the current index on dev for that same collection
     // Function fires only once, if index already exists it does nothing
     Post.collection.createIndex({
-      from: 1,
-      to: 1,
-      price: 1,
       "location.searchStreet": 1,
       "location.searchCity": 1,
       isArchived: 1,
       brand: 1,
+      from: 1,
+      to: 1,
+      price: 1,
     });
   });
 } else {
@@ -98,13 +98,13 @@ if (process.env.NODE_ENV === "production") {
   app.listen(8800, () => {
     console.log("HTTP Server started in development!");
     // Post.collection.createIndex({
-    //   from: 1,
-    //   to: 1,
-    //   price: 1,
     //   "location.searchStreet": 1,
     //   "location.searchCity": 1,
     //   isArchived: 1,
     //   brand: 1,
+    //   from: 1,
+    //   to: 1,
+    //   price: 1,
     // });
 
     // Post.collection.getIndexes().then((result) => {

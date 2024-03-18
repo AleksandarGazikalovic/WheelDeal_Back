@@ -2,4 +2,4 @@ Each file in Scheduler folder contains scheduled jobs for a certain collection i
 
 For help how to form schedule argument in cron.schedule function refer to following site -> https://crontab.guru/
 
-IMPORTANT: Every js file from folder must be imported to scheduleWrapper.js in order to be able to trigger on server
+IMPORTANT: Every js file from folder must be imported to index.js (inside scheduler folder) in order to be able to trigger on server
