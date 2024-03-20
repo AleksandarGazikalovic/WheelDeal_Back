@@ -7,6 +7,7 @@ const morgan = require("morgan");
 const userRoute = require("./routes/users");
 const authRoute = require("./routes/auth");
 const postRoute = require("./routes/posts");
+const vehicleRoute = require("./routes/vehicles");
 const commentRoute = require("./routes/comments");
 const bookingRoute = require("./routes/bookings");
 const cors = require("cors");
@@ -65,6 +66,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api/users", userRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/posts", postRoute);
+app.use("/api/vehicles", vehicleRoute);
 app.use("/api/comments", commentRoute);
 app.use("/api/bookings", bookingRoute);
 
@@ -87,7 +89,6 @@ if (process.env.NODE_ENV === "production") {
       "location.searchStreet": 1,
       "location.searchCity": 1,
       isArchived: 1,
-      brand: 1,
       from: 1,
       to: 1,
       price: 1,
@@ -101,7 +102,6 @@ if (process.env.NODE_ENV === "production") {
     //   "location.searchStreet": 1,
     //   "location.searchCity": 1,
     //   isArchived: 1,
-    //   brand: 1,
     //   from: 1,
     //   to: 1,
     //   price: 1,
@@ -112,7 +112,7 @@ if (process.env.NODE_ENV === "production") {
     // });
 
     // Post.collection.dropIndex(
-    //   "from_1_to_1_price_1_location.searchStreet_1_location.searchCity_1_isArchived_1_brand_1"
+    //   "location.searchStreet_1_location.searchCity_1_isArchived_1_brand_1_from_1_to_1_price_1"
     // );
   });
 }
