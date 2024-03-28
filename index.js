@@ -18,6 +18,7 @@ const morganBody = require("morgan-body");
 const cookieParser = require("cookie-parser");
 const scheduler = require("./modules/scheduler/index");
 const Post = require("./models/Post");
+const errorHandler = require("./middleware/errorHandler");
 
 // dotenv.config();
 //MongoDB Connection, to prod or dev database
@@ -67,6 +68,8 @@ app.use("/api/auth", authRoute);
 app.use("/api/posts", postRoute);
 app.use("/api/comments", commentRoute);
 app.use("/api/bookings", bookingRoute);
+
+app.use(errorHandler);
 
 // Check if the environment is production
 if (process.env.NODE_ENV === "production") {
