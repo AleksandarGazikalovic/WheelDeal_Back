@@ -48,8 +48,7 @@ router.post("/", verifyToken, async (req, res) => {
       vehicleId: req.body.vehicleId,
       location: {
         address: req.body.location.address,
-        lat: req.body.location.lat,
-        lng: req.body.location.lng,
+        latLng: req.body.location.latLng,
         searchAddress: searchAddress,
         searchStreet: searchStreet,
         searchCity: searchCity,
@@ -78,7 +77,9 @@ router.post("/", verifyToken, async (req, res) => {
 
     res.status(200).json(embeddedPost);
   } catch (err) {
-    console.error(err);
+    if (savedPost && savedPost._id) {
+      await Post.findByIdAndDelete(savedPost._id);
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 });

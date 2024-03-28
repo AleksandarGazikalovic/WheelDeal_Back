@@ -21,50 +21,55 @@ const upload = multer({
 });
 
 //create a vehicle
-router.post("/", upload.array("images", 10), verifyToken, async (req, res) => {
-  try {
-    let newVehicle = new Vehicle({
-      ...req.body,
-    });
-    let savedVehicle = await newVehicle.save();
-
-    const imageKeys = await uploadVehicleImagesToS3(
-      req.files,
-      req.body.userId,
-      savedVehicle.id
-    );
-
-    savedVehicle = await Vehicle.findByIdAndUpdate(
-      savedVehicle.id,
-      {
-        images: imageKeys,
+router.post(
+  "/",
+  upload.array("images[]", 10),
+  verifyToken,
+  async (req, res) => {
+    try {
+      let newVehicle = new Vehicle({
         ...req.body,
-      },
-      { new: true }
-    );
+      });
+      let savedVehicle = await newVehicle.save();
 
-    const updatedImages = [];
-    for (let i = 0; i < savedVehicle.images.length; i++) {
-      const url = await getVehicleImageSignedUrlS3(
-        savedVehicle.images[i],
+      const imageKeys = await uploadVehicleImagesToS3(
+        req.files,
         req.body.userId,
         savedVehicle.id
       );
-      updatedImages.push(url);
-    }
-    savedVehicle.images = updatedImages;
 
-    res.status(200).json(savedVehicle);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal Server Error" });
+      savedVehicle = await Vehicle.findByIdAndUpdate(
+        savedVehicle.id,
+        {
+          images: imageKeys,
+          ...req.body,
+        },
+        { new: true }
+      );
+
+      const updatedImages = [];
+      for (let i = 0; i < savedVehicle.images.length; i++) {
+        const url = await getVehicleImageSignedUrlS3(
+          savedVehicle.images[i],
+          req.body.userId,
+          savedVehicle.id
+        );
+        updatedImages.push(url);
+      }
+      savedVehicle.images = updatedImages;
+
+      res.status(200).json(savedVehicle);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
   }
-});
+);
 
 //update a vehicle
 router.put(
   "/:id",
-  upload.array("images", 10),
+  upload.array("images[]", 10),
   verifyToken,
   async (req, res) => {
     try {
@@ -176,6 +181,27 @@ router.get("/profile/:id", async (req, res) => {
     });
     const updatedVehicles = await Promise.all(imagePromises);
     res.status(200).json(updatedVehicles);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+//get user vehicles
+router.get("/user/:id", async (req, res) => {
+  try {
+    const vehicles = await Vehicle.find({
+      userId: req.params.id,
+    });
+    const vehicleResource = vehicles.map((vehicle) => {
+      return {
+        vehicleId: vehicle.id,
+        brand: vehicle.brand,
+        carModel: vehicle.carModel,
+        year: vehicle.year,
+      };
+    });
+    res.status(200).json(vehicleResource);
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });

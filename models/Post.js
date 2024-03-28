@@ -26,13 +26,15 @@ const PostSchema = new mongoose.Schema(
       searchCity: {
         type: String,
       },
-      lat: {
-        type: Number,
-        required: true,
-      },
-      lng: {
-        type: Number,
-        required: true,
+      latLng: {
+        lat: {
+          type: Number,
+          required: true,
+        },
+        lng: {
+          type: Number,
+          required: true,
+        },
       },
     },
     price: {
