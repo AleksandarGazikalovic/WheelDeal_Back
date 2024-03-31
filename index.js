@@ -10,6 +10,7 @@ const postRoute = require("./routes/posts");
 const vehicleRoute = require("./routes/vehicles");
 const commentRoute = require("./routes/comments");
 const bookingRoute = require("./routes/bookings");
+const documentRoute = require("./routes/documents");
 const cors = require("cors");
 const path = require("path");
 const https = require("https");
@@ -69,6 +70,7 @@ app.use("/api/posts", postRoute);
 app.use("/api/vehicles", vehicleRoute);
 app.use("/api/comments", commentRoute);
 app.use("/api/bookings", bookingRoute);
+app.use("/api/documents", documentRoute);
 
 // Check if the environment is production
 if (process.env.NODE_ENV === "production") {

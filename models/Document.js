@@ -6,6 +6,10 @@ const documentSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  vehicleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Vehicle",
+  },
   type: {
     type: String,
     enum: [
@@ -17,24 +21,26 @@ const documentSchema = new mongoose.Schema({
   },
   startDate: {
     type: Date,
-    required: true,
   },
   endDate: {
     type: Date,
-    required: true,
   },
-  transactionDate: {
-    type: Date,
-    default: Date.now,
-  },
-  price: {
-    type: Number,
-    required: true,
-  },
-  status: {
+  file: {
     type: String,
-    enum: ["pending", "completed", "failed"],
-    default: "pending",
+  },
+  verified: {
+    type: Boolean,
+    default: false,
+  },
+  rejected: {
+    type: Boolean,
+    default: false,
+  },
+  reason: {
+    type: String,
+  },
+  note: {
+    type: String,
   },
 });
 

@@ -68,6 +68,36 @@ async function getVehicleImageSignedUrlS3(profileImage, userId, vehicleId) {
   return signedUrl;
 }
 
+const getDocumentSignedUrlS3 = async (
+  file,
+  userId,
+  type,
+  vehicleId,
+  documentId
+) => {
+  const command = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key:
+      rootBucketFolder +
+      "/" +
+      "User_" +
+      userId +
+      "/" +
+      "Vehicle_" +
+      vehicleId +
+      "/" +
+      type +
+      "_" +
+      documentId,
+  });
+
+  const signedUrl = await getSignedUrl(s3, command, {
+    expiresIn: 3600,
+  });
+
+  return signedUrl;
+};
+
 // image uploading with compression
 const uploadVehicleImagesToS3 = async (files, userId, vehicleId) => {
   const imageKeys = [];
@@ -99,6 +129,45 @@ const uploadVehicleImagesToS3 = async (files, userId, vehicleId) => {
 
     imageKeys.push(imageName);
   }
+
+  return imageKeys;
+};
+
+const uploadDocumentToS3 = async (
+  file,
+  userId,
+  type,
+  vehicleId,
+  documentId
+) => {
+  const imageKeys = [];
+  const imageName = randomImageName();
+  const fileContent = file.buffer;
+
+  const uploadParams = {
+    Bucket: process.env.S3_BUCKET_NAME,
+    Body: fileContent,
+    Key:
+      rootBucketFolder +
+      "/" +
+      "User_" +
+      userId +
+      "/" +
+      "Vehicle_" +
+      vehicleId +
+      "/" +
+      type +
+      "_" +
+      documentId +
+      "/" +
+      imageName,
+    ContentType: file.mimetype,
+  };
+
+  const command = new PutObjectCommand(uploadParams);
+  await s3.send(command);
+
+  imageKeys.push(imageName);
 
   return imageKeys;
 };
