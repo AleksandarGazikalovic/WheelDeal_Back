@@ -9,7 +9,7 @@ const {
   ListObjectsV2Command,
 } = require("@aws-sdk/client-s3");
 const {
-  convertPostPicture,
+  convertVehiclePicture,
   convertProfilePicture,
   pictureFormat,
 } = require("./pictures");
@@ -46,7 +46,7 @@ async function getProfileImageSignedUrlS3(profileImage, userId) {
   return signedUrl;
 }
 
-async function getPostImageSignedUrlS3(profileImage, userId, postId) {
+async function getVehicleImageSignedUrlS3(profileImage, userId, vehicleId) {
   const command = new GetObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
     Key:
@@ -55,8 +55,8 @@ async function getPostImageSignedUrlS3(profileImage, userId, postId) {
       "User_" +
       userId +
       "/" +
-      "Post_" +
-      postId +
+      "Vehicle_" +
+      vehicleId +
       "/" +
       profileImage,
   });
@@ -69,14 +69,14 @@ async function getPostImageSignedUrlS3(profileImage, userId, postId) {
 }
 
 // image uploading with compression
-const uploadPostImagesToS3 = async (files, userId, postId) => {
+const uploadVehicleImagesToS3 = async (files, userId, vehicleId) => {
   const imageKeys = [];
 
   for (const file of files) {
     const imageName = randomImageName();
     const fileContent = file.buffer;
     // convert image to webp and compress it
-    const convertedPicture = await convertPostPicture(fileContent);
+    const convertedPicture = await convertVehiclePicture(fileContent);
 
     const uploadParams = {
       Bucket: process.env.S3_BUCKET_NAME,
@@ -87,8 +87,8 @@ const uploadPostImagesToS3 = async (files, userId, postId) => {
         "User_" +
         userId +
         "/" +
-        "Post_" +
-        postId +
+        "Vehicle_" +
+        vehicleId +
         "/" +
         imageName,
       ContentType: pictureFormat,
@@ -129,12 +129,19 @@ async function deleteProfileImageFromS3(image, userId) {
   s3.send(deleteCommand);
 }
 
-async function deletePostImagesFromS3(userId, postId) {
+async function deleteVehicleImagesFromS3(userId, vehicleId) {
   const command = new ListObjectsV2Command({
     Bucket: process.env.S3_BUCKET_NAME,
     Delimiter: "/",
     Prefix:
-      rootBucketFolder + "/" + "User_" + userId + "/" + "Post_" + postId + "/",
+      rootBucketFolder +
+      "/" +
+      "User_" +
+      userId +
+      "/" +
+      "Vehicle_" +
+      vehicleId +
+      "/",
     MaxKeys: 1000,
   });
 
@@ -165,9 +172,9 @@ async function deletePostImagesFromS3(userId, postId) {
 
 module.exports = {
   getProfileImageSignedUrlS3,
-  getPostImageSignedUrlS3,
+  getVehicleImageSignedUrlS3,
   uploadProfileImageToS3,
-  uploadPostImagesToS3,
+  uploadVehicleImagesToS3,
   deleteProfileImageFromS3,
-  deletePostImagesFromS3,
+  deleteVehicleImagesFromS3,
 };
