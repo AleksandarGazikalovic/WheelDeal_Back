@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const Notification = require("../models/Notification");
 const User = require("../models/User");
+const dotenv = require("dotenv");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -17,16 +18,30 @@ router.get("/:id", async (req, res) => {
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
     const allNotifications = await Notification.find({
-      userId: req.params.id,
+      user: req.params.id,
       $or: [
-        { opened: false },
-        { $and: [{ opened: true }, { created: { $gt: oneMonthAgo } }] },
+        { isOpened: false },
+        { $and: [{ isOpened: true }, { createdAt: { $gt: oneMonthAgo } }] },
       ],
     });
 
-    res.status(200).json(allNotifications);
+    res.status(200).json({ allNotifications });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
+router.put("/:id", async (req, res) => {
+  try {
+    const notification = await Notification.findById(req.params.id);
+    notification.isOpened = true;
+    await notification.save();
+    res.status(200);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+module.exports = router;
