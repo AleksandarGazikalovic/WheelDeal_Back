@@ -4,6 +4,7 @@ const Post = require("../models/Post");
 const dotenv = require("dotenv");
 const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
 const AppError = require("../modules/errorHandling/AppError");
+const CommentService = require("../services/comments");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -11,70 +12,16 @@ if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.development` });
 }
 
+const commentService = new CommentService();
+
 class CommentsController {
   async createComment(req, res) {
-    // Check if the user exists
-    const user = await User.findById(req.body.author);
-    if (!user) {
-      throw new AppError("User not found.", 404);
-    }
-
-    // Check if the post exists
-    const post = await Post.findById(req.body.post);
-    if (!post) {
-      throw new AppError("Post not found.", 404);
-    }
-
-    // Check if the author is the same as the post owner
-    if (req.body.author === post.userId) {
-      throw new AppError("You can't comment your own post.", 403);
-    }
-
-    // //TODO - Uncomment the following code when the payment system is implemented
-    // //Check if transaction is completed before commenting
-    // if (!req.body.paymentId) {
-    //   return res
-    //     .status(403)
-    //     .json({message: "Complete transaction is required for commenting."});
-    // }
-
-    // //check if the payment exists
-    // const payment = await Payment.findById(req.body.paymentId)
-    // if (!payment) {
-    //   return res.status(404).json({message: "Payment not found."});
-    // }
-
-    // check if the rating is missing
-    if (!req.body.rating) {
-      throw new AppError("Rating is required.", 400);
-    }
-
-    const newComment = new Comment(req.body);
-    await newComment.save();
-
+    await commentService.createComment(req.body);
     res.status(200).json({ message: "Comment created successfully." });
   }
 
   async updateComment(req, res) {
-    const comment = await Comment.findById(req.params.id);
-    if (!comment) {
-      throw new AppError("Comment not found.", 404);
-    }
-
-    if (req.body.author !== comment.author.toString()) {
-      throw new AppError("You can't update this comment.", 403);
-    }
-
-    const newComment = await Comment.findByIdAndUpdate(
-      req.params.id,
-      {
-        $set: {
-          rating: req.body.rating,
-          content: req.body.content,
-        },
-      },
-      { new: true }
-    );
+    const newComment = await commentService.updateComment(req);
     res.status(200).json(newComment);
   }
 
