@@ -1,5 +1,4 @@
 const Post = require("../models/Post");
-const AppError = require("../modules/errorHandling/AppError");
 
 class PostRepository {
   // create post with given fields
@@ -28,7 +27,6 @@ class PostRepository {
     for (let field in postData) {
       post[field] = postData[field];
     }
-
     const updatedPost = await post.save();
     return updatedPost;
   }

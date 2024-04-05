@@ -15,7 +15,6 @@ class CommentRepository {
     for (let field in commentData) {
       comment[field] = commentData[field];
     }
-
     const updatedComment = await comment.save();
     return updatedComment;
   }
@@ -24,6 +23,15 @@ class CommentRepository {
   async getCommentByFields(searchData) {
     const foundComment = await Comment.findOne(searchData);
     return foundComment;
+  }
+
+  // find all comments by matching criteria
+  async getAllCommentsByFields(searchData) {
+    const foundComments = await Comment.find({ ...searchData }).populate({
+      path: "author",
+      select: "name surname profileImage",
+    });
+    return foundComments;
   }
 
   // find comment by id and delete that comment

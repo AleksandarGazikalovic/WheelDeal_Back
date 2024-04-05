@@ -3,12 +3,14 @@ const dotenv = require("dotenv");
 const {
   uploadPostImagesToS3,
   getPostImageSignedUrlS3,
+  getVehicleImageSignedUrlS3,
 } = require("../modules/aws_s3");
 const { transliterate } = require("../modules/transliteration");
 const AppError = require("../modules/errorHandling/AppError");
 const DateConverter = require("../modules/dateConverter");
 const UserService = require("./users");
 const PostRepository = require("../repositories/posts");
+const VehicleService = require("./vehicles");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -19,6 +21,7 @@ if (process.env.NODE_ENV === "production") {
 const dateConverter = new DateConverter();
 const postRepository = new PostRepository();
 const userService = new UserService();
+const vehicleService = new VehicleService();
 
 class PostService {
   async extractCityStreetFromAddress(address) {
@@ -50,39 +53,61 @@ class PostService {
     return [searchAddress, searchStreet, searchCity];
   }
 
-  async getPostPictures(post) {
+  async getVehiclePictures(vehicle) {
+    // console.log(vehicle);
+    // console.log(vehicle.images);
     const updatedImages = [];
-    for (let i = 0; i < post.images.length; i++) {
-      const url = await getPostImageSignedUrlS3(
-        post.images[i],
-        post.userId,
-        post.id
+    for (let i = 0; i < vehicle.images.length; i++) {
+      const url = await getVehicleImageSignedUrlS3(
+        vehicle.images[i],
+        vehicle.userId,
+        vehicle.id
       );
       updatedImages.push(url);
     }
     return updatedImages;
   }
 
-  async getAllPostsWithPictures(posts) {
-    const imagePromises = posts.map(async (post) => {
-      post.images = await this.getPostPictures(post);
-      return post;
+  async getAllVehiclesWithPictures(vehicles) {
+    const imagePromises = vehicles.map(async (vehicle) => {
+      vehicle.images = await this.getVehiclePictures(vehicle);
+      return vehicle;
     });
-    const updatedPosts = await Promise.all(imagePromises);
-    return updatedPosts;
+    const updatedVehicles = await Promise.all(imagePromises);
+    return updatedVehicles;
   }
 
+  //
   async getPost(postData) {
     const post = await postRepository.getPostByFields(postData);
     if (!post) {
       throw new AppError("Post not found", 404);
     }
-    return post;
+    const vehicle = await vehicleService.getVehicle({
+      _id: post.vehicleId,
+    });
+    vehicle.images = await this.getVehiclePictures(vehicle);
+    const embeddedPost = {
+      ...post._doc,
+      vehicle: vehicle,
+    };
+    return embeddedPost;
   }
 
+  //
   async getPosts(postData) {
     const posts = await postRepository.getAllPostsByFields(postData);
-    return posts;
+    const vehicles = await vehicleService.getAllVehiclesFromPosts(posts);
+
+    const updatedVehicles = await this.getAllVehiclesWithPictures(vehicles);
+
+    const embeddedPosts = posts.map((post, index) => {
+      return {
+        ...post._doc,
+        vehicle: updatedVehicles[index],
+      };
+    });
+    return embeddedPosts;
   }
 
   async checkPostExistsById(postId) {
@@ -93,12 +118,15 @@ class PostService {
     return post;
   }
 
+  //
   async createPost(req) {
     let [searchAddress, searchStreet, searchCity] =
       await this.extractCityStreetFromAddress(req.body.location.address);
 
     let savedPost = await postRepository.createPost({
       ...req.body,
+      userId: req.body.userId,
+      vehicleId: req.body.vehicleId,
       location: {
         address: req.body.location.address,
         searchAddress: searchAddress,
@@ -108,42 +136,58 @@ class PostService {
       },
     });
 
-    const imageKeys = await uploadPostImagesToS3(
-      req.files,
-      req.body.userId,
-      savedPost.id
-    );
+    const vehicle = await vehicleService.getVehicle({
+      _id: req.body.vehicleId,
+    });
+    // console.log(vehicle);
+
+    // const imageKeys = await uploadPostImagesToS3(
+    //   req.files,
+    //   req.body.userId,
+    //   savedPost.id
+    // );
 
     // link aws uploaded pics to post
-    savedPost = await postRepository.updatePost(savedPost.id, {
-      images: imageKeys,
-    });
+    // savedPost = await postRepository.updatePost(savedPost.id, {
+    //   images: imageKeys,
+    // });
 
-    savedPost.images = await this.getPostPictures(savedPost);
-    return savedPost;
+    vehicle.images = await this.getVehiclePictures(vehicle);
+    const embeddedPost = {
+      ...savedPost._doc,
+      vehicle: vehicle,
+    };
+    return embeddedPost;
   }
 
+  //
   async updatePost(req) {
     const post = await postRepository.getPostByFields({ _id: req.params.id });
-    if (post.userId === req.body.userId) {
-      let imageKeys = [];
-      // update pictures if user uploaded new images ("stomp over" the old ones)
-      if (req.files && req.files.length > 0) {
-        imageKeys = await uploadPostImagesToS3(
-          req.files,
-          req.body.userId,
-          req.params.id
-        );
-      } else {
-        imageKeys = post.images;
-      }
+    if (post.userId.toString() === req.body.userId) {
+      // let imageKeys = [];
+      // // update pictures if user uploaded new images ("stomp over" the old ones)
+      // if (req.files && req.files.length > 0) {
+      //   imageKeys = await uploadPostImagesToS3(
+      //     req.files,
+      //     req.body.userId,
+      //     req.params.id
+      //   );
+      // } else {
+      //   imageKeys = post.images;
+      // }
 
       const updatedPost = await postRepository.updatePost(req.params.id, {
-        images: imageKeys,
         ...req.body,
       });
 
-      return updatedPost;
+      const vehicle = await vehicleService.getVehicle({ _id: post.vehicleId });
+      vehicle.images = await this.getVehiclePictures(vehicle);
+
+      const embeddedPost = {
+        ...updatedPost._doc,
+        vehicle: vehicle,
+      };
+      return embeddedPost;
     } else {
       throw new AppError("You can only update your post!", 403);
     }
@@ -151,7 +195,7 @@ class PostService {
 
   async deletePost(postId, userId) {
     const post = await postRepository.getPostByFields({ _id: postId });
-    if (post.userId === userId) {
+    if (post.userId.toString() === userId) {
       await postRepository.deletePost(post.id);
     } else {
       throw new AppError("You can only delete your post!", 403);
@@ -344,10 +388,19 @@ class PostService {
 
   async applyFilter(filter) {
     // let startTime = new Date();
-    const [posts, hasMore] = await postRepository.performFilterSearch(filter);
+    const [plainPosts, hasMore] = await postRepository.performFilterSearch(
+      filter
+    );
 
     // let endTime = new Date();
     // console.log("Execution time: " + (endTime - startTime) + " milliseconds");
+
+    // fetch vehicle info and pictures
+    const posts = await Promise.all(
+      plainPosts.map((postId) => {
+        return this.getPost({ _id: postId });
+      })
+    );
 
     return [posts, hasMore];
     //startTime = new Date();

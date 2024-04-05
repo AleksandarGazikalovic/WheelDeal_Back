@@ -241,7 +241,6 @@ class AuthService {
   async performPasswordReset(user, newPassword) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-    console.log(user);
 
     await userService.updateUser(user._id.toString(), {
       password: hashedPassword,
@@ -357,7 +356,7 @@ class AuthService {
     return token;
   }
 
-  async handleAccessTokenExpiry(token, res) {
+  async handleAccessTokenExpiry(token, req, res) {
     await jwt.verify(
       token,
       process.env.ACCESS_TOKEN_SECRET,

@@ -3,83 +3,66 @@ const multer = require("multer");
 
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const PostsController = require("../controllers/posts");
+const VehicleController = require("../controllers/vehicles");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-const postsController = new PostsController();
+const vehicleController = new VehicleController();
 
-//create a post
+//create a vehicle
 router.post(
   "/",
   upload.array("images[]", 10),
   verifyToken,
   tryCatch(async (req, res) => {
-    await postsController.createPost(req, res);
+    await vehicleController.createVehicle(req, res);
   })
 );
 
-//update a post
+//update a vehicle
 router.put(
   "/:id",
   upload.array("images[]", 10),
   verifyToken,
   tryCatch(async (req, res) => {
-    await postsController.updatePost(req, res);
+    await vehicleController.updateVehicle(req, res);
   })
 );
 
-//delete a post
+//delete a vehicle
 router.delete(
   "/:id",
-  tryCatch(async (req, res) => {
-    await postsController.deletePost(req, res);
-  })
-);
-
-//like a post
-router.put(
-  "/:id/like",
   verifyToken,
   tryCatch(async (req, res) => {
-    await postsController.likePost(req, res);
+    await vehicleController.deleteVehicle(req, res);
   })
 );
 
-//get a post
+//get a vehicle
 router.get(
   "/:id",
   tryCatch(async (req, res) => {
-    await postsController.getPost(req, res);
+    await vehicleController.getVehicle(req, res);
   })
 );
 
-//get all user posts
+//get all user vehicles
 router.get(
   "/profile/:id",
   verifyToken,
   tryCatch(async (req, res) => {
-    await postsController.getUserPosts(req, res);
+    await vehicleController.getAllUserVehiclesWithImages(req, res);
   })
 );
 
-//get all liked posts
+//get user vehicles
 router.get(
-  "/liked/:id",
-  verifyToken,
+  "/user/:id",
   tryCatch(async (req, res) => {
-    await postsController.getUserLikedPosts(req, res);
-  })
-);
-
-//filter posts by date and price
-router.get(
-  "/filter/all",
-  tryCatch(async (req, res) => {
-    await postsController.filterPosts(req, res);
+    await vehicleController.getAllUserVehiclesWithoutImages(req, res);
   })
 );
 

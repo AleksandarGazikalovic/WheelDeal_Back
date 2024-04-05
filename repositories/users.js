@@ -1,5 +1,4 @@
 const User = require("../models/User");
-const AppError = require("../modules/errorHandling/AppError");
 
 class UserRepository {
   // create user with given fields
@@ -22,7 +21,6 @@ class UserRepository {
     for (let field in userData) {
       user[field] = userData[field];
     }
-
     const updatedUser = await user.save();
     return updatedUser;
   }

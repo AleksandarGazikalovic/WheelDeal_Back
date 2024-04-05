@@ -7,6 +7,7 @@ const morgan = require("morgan");
 const userRoute = require("./routes/users");
 const authRoute = require("./routes/auth");
 const postRoute = require("./routes/posts");
+const vehicleRoute = require("./routes/vehicles");
 const commentRoute = require("./routes/comments");
 const bookingRoute = require("./routes/bookings");
 const cors = require("cors");
@@ -66,6 +67,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api/users", userRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/posts", postRoute);
+app.use("/api/vehicles", vehicleRoute);
 app.use("/api/comments", commentRoute);
 app.use("/api/bookings", bookingRoute);
 
@@ -87,13 +89,12 @@ if (process.env.NODE_ENV === "production") {
     // Will create index in production for collection 'posts', same as the current index on dev for that same collection
     // Function fires only once, if index already exists it does nothing
     Post.collection.createIndex({
-      from: 1,
-      to: 1,
-      price: 1,
       "location.searchStreet": 1,
       "location.searchCity": 1,
       isArchived: 1,
-      brand: 1,
+      from: 1,
+      to: 1,
+      price: 1,
     });
   });
 } else {
@@ -101,13 +102,12 @@ if (process.env.NODE_ENV === "production") {
   app.listen(8800, () => {
     console.log("HTTP Server started in development!");
     // Post.collection.createIndex({
-    //   from: 1,
-    //   to: 1,
-    //   price: 1,
     //   "location.searchStreet": 1,
     //   "location.searchCity": 1,
     //   isArchived: 1,
-    //   brand: 1,
+    //   from: 1,
+    //   to: 1,
+    //   price: 1,
     // });
 
     // Post.collection.getIndexes().then((result) => {
@@ -115,7 +115,7 @@ if (process.env.NODE_ENV === "production") {
     // });
 
     // Post.collection.dropIndex(
-    //   "from_1_to_1_price_1_location.searchStreet_1_location.searchCity_1_isArchived_1_brand_1"
+    //   "location.searchStreet_1_location.searchCity_1_isArchived_1_brand_1_from_1_to_1_price_1"
     // );
   });
 }

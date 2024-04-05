@@ -22,8 +22,9 @@ class BookingService {
     return booking;
   }
 
-  async createBooking(postId, bookingData) {
-    const post = await postService.getPost({ _id: postId, isArchived: false });
+  async createBooking(bookingData) {
+    const { postId } = bookingData;
+    const post = await postService.getPost({ _id: postId });
     if (!post) {
       throw new AppError("Post not found", 404);
     }

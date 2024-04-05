@@ -19,6 +19,18 @@ const userService = new UserService();
 const postService = new PostService();
 
 class CommentService {
+  async getCommentsWithUserProfileImages(comments) {
+    for (const comment of comments) {
+      if (comment.author && comment.author.profileImage !== "") {
+        comment.author.profileImage = await getProfileImageSignedUrlS3(
+          comment.author.profileImage,
+          comment.author._id
+        );
+      }
+    }
+    return comments;
+  }
+
   async createComment(commentData) {
     // Check if the user and post exist
     const user = await userService.checkUserExistsById(commentData.author);
@@ -61,18 +73,39 @@ class CommentService {
     return comment;
   }
 
+  async checkCanChangeComment(comment, author) {
+    if (author !== comment.author.toString()) {
+      throw new AppError("You can't make changes to this comment.", 403);
+    }
+  }
+
   async updateComment(req) {
     const comment = await this.checkCommentExistsById(req.params.id);
-
-    if (req.body.author !== comment.author.toString()) {
-      throw new AppError("You can't update this comment.", 403);
-    }
+    await this.checkCanChangeComment(comment, req.body.author);
 
     const newComment = await commentRepository.updateComment(req.params.id, {
       rating: req.body.rating,
       content: req.body.content,
     });
     return newComment;
+  }
+
+  async getComments(req) {
+    const posts = await postService.getPosts({ userId: req.params.id });
+    const postIds = posts.map((post) => post._id);
+    if (postIds.length === 0) {
+      throw new AppError("Posts not found.", 404);
+    }
+    const comments = await commentRepository.getAllCommentsByFields({
+      post: { $in: postIds },
+    });
+    return comments;
+  }
+
+  async deleteComment(req) {
+    const comment = await this.checkCommentExistsById(req.params.id);
+    await this.checkCanChangeComment(comment, req.body.author);
+    await commentRepository.deleteComment(req.params.id);
   }
 }
 

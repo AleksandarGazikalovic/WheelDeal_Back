@@ -1,11 +1,4 @@
-const dotenv = require("dotenv");
 const PostService = require("../services/posts");
-
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: `.env.production` });
-} else {
-  dotenv.config({ path: `.env.development` });
-}
 
 const postService = new PostService();
 
@@ -22,8 +15,6 @@ class PostsController {
       _id: req.params.id,
       isArchived: false,
     });
-
-    post.images = await postService.getPostPictures(post);
     res.status(200).json(post);
   }
 
@@ -33,16 +24,12 @@ class PostsController {
       userId: req.params.id,
       isArchived: false,
     });
-
-    const updatedPosts = await postService.getAllPostsWithPictures(posts);
-    res.status(200).json(updatedPosts);
+    res.status(200).json(posts);
   }
 
   //
   async updatePost(req, res) {
     const updatedPost = await postService.updatePost(req);
-    updatedPost.images = await postService.getPostPictures(updatedPost);
-
     res.status(200).json(updatedPost);
   }
 
@@ -70,9 +57,7 @@ class PostsController {
 
     // fetch remaining valid posts liked by user
     const posts = await postService.getUserLikedPosts(user.likedPosts);
-    const postsWithPictures = await postService.getAllPostsWithPictures(posts);
-
-    res.status(200).json(postsWithPictures);
+    res.status(200).json(posts);
   }
 
   //
@@ -115,9 +100,9 @@ class PostsController {
 
     // apply the filter on posts
     const [posts, hasMore] = await postService.applyFilter(filter);
-    const updatedPosts = await postService.getAllPostsWithPictures(posts);
+    // const updatedPosts = await postService.getAllVehiclesWithPictures(posts);
 
-    res.status(200).json({ posts: updatedPosts, hasMore });
+    res.status(200).json({ posts: posts, hasMore });
   }
 }
 

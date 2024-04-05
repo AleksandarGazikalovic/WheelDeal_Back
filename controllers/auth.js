@@ -1,15 +1,4 @@
-const User = require("../models/User");
-const dotenv = require("dotenv");
-const jwt = require("jsonwebtoken");
 const AuthService = require("../services/auth");
-
-const AppError = require("../modules/errorHandling/AppError");
-
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: `.env.production` });
-} else {
-  dotenv.config({ path: `.env.development` });
-}
 
 const authService = new AuthService();
 
@@ -112,7 +101,7 @@ class AuthController {
   async handleAccessTokenExpiry(req, res) {
     const token = await authService.getAccessToken(req);
 
-    await authService.handleAccessTokenExpiry(token, res);
+    await authService.handleAccessTokenExpiry(token, req, res);
   }
 
   //

@@ -46,7 +46,7 @@ router.post(
   })
 );
 
-//verify user
+//verify user - is this deprecated??
 router.put(
   "/:id/verify",
   verifyToken,

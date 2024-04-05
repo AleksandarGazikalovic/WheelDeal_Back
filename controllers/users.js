@@ -1,11 +1,4 @@
-const dotenv = require("dotenv");
 const UserService = require("../services/users");
-
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: `.env.production` });
-} else {
-  dotenv.config({ path: `.env.development` });
-}
 
 const userService = new UserService();
 
@@ -40,6 +33,7 @@ class UsersController {
     }
   }
 
+  //
   async uploadProfileImage(req, res) {
     const userHasAccess = await userService.checkUserHasAccess(req);
     if (userHasAccess) {
