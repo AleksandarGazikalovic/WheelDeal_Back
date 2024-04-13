@@ -24,10 +24,10 @@ const job = cron.schedule("10 0 * * *", async () => {
     return;
   }
 
-  const title = "Vozačka dozvola blizu isteka!";
+  const title = "Driver's license close to expiration!";
   const content =
-    "Vaša vozačka dozvola ističe za mesec dana. Molim Vas da kada obnovite vašu vozačku dozvolu," +
-    " aržurirajte podatke na platformi. Unapred hvala, vaš WheelDeal";
+    "Your driver's license expires in one month. Please, when you renew your driver's license," +
+    " archive the data on the platform. Thanks in advance, your WheelDeal!";
   const createdAt = new Date();
 
   for (let i = 0; i < users.length; i++) {
