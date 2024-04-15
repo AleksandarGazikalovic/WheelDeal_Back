@@ -1,6 +1,10 @@
+const { Scopes } = require("dioma");
 const Vehicle = require("../models/Vehicle");
 
 class VehicleRepository {
+  // Single instance of the class for the entire application
+  static scope = Scopes.Singleton();
+
   // find vehicle using any fields and their values
   async getVehicleByFields(searchData) {
     const foundVehicle = await Vehicle.findOne(searchData);

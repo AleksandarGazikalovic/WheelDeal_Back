@@ -4,12 +4,13 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const userRoute = require("./routes/users");
-const authRoute = require("./routes/auth");
-const postRoute = require("./routes/posts");
-const vehicleRoute = require("./routes/vehicles");
-const commentRoute = require("./routes/comments");
-const bookingRoute = require("./routes/bookings");
+const { services } = require("./services/index");
+const { createAuthRoutes } = require("./routes/auth");
+const { createUserRoutes } = require("./routes/users");
+const { createPostRoutes } = require("./routes/posts");
+const { createVehicleRoutes } = require("./routes/vehicles");
+const { createCommentRoutes } = require("./routes/comments");
+const { createBookingRoutes } = require("./routes/bookings");
 const cors = require("cors");
 const path = require("path");
 const https = require("https");
@@ -64,12 +65,12 @@ app.use(
 );
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/api/users", userRoute);
-app.use("/api/auth", authRoute);
-app.use("/api/posts", postRoute);
-app.use("/api/vehicles", vehicleRoute);
-app.use("/api/comments", commentRoute);
-app.use("/api/bookings", bookingRoute);
+app.use("/api/auth", createAuthRoutes(services.authService));
+app.use("/api/posts", createPostRoutes(services.postService));
+app.use("/api/users", createUserRoutes(services.userService));
+app.use("/api/vehicles", createVehicleRoutes(services.vehicleService));
+app.use("/api/comments", createCommentRoutes(services.commentService));
+app.use("/api/bookings", createBookingRoutes(services.bookingService));
 
 app.use(errorHandler);
 

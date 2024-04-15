@@ -7,6 +7,7 @@ const AppError = require("../modules/errorHandling/AppError");
 const CommentRepository = require("../repositories/comments");
 const UserService = require("./users");
 const PostService = require("./posts");
+const { inject, Scopes } = require("dioma");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -14,11 +15,18 @@ if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.development` });
 }
 
-const commentRepository = new CommentRepository();
-const userService = new UserService();
-const postService = new PostService();
-
 class CommentService {
+  constructor(
+    commentRepository = inject(CommentRepository),
+    userService = inject(UserService),
+    postService = inject(PostService)
+  ) {
+    this.commentRepository = commentRepository;
+    this.userService = userService;
+    this.postService = postService;
+  }
+  static scope = Scopes.Singleton();
+
   async getCommentsWithUserProfileImages(comments) {
     for (const comment of comments) {
       if (comment.author && comment.author.profileImage !== "") {
@@ -33,8 +41,8 @@ class CommentService {
 
   async createComment(commentData) {
     // Check if the user and post exist
-    const user = await userService.checkUserExistsById(commentData.author);
-    const post = await postService.checkPostExistsById(commentData.post);
+    const user = await this.userService.checkUserExistsById(commentData.author);
+    const post = await this.postService.checkPostExistsById(commentData.post);
 
     // Check if the author is the same as the post owner
     if (commentData.author === post.userId) {
@@ -59,12 +67,12 @@ class CommentService {
     if (!commentData.rating) {
       throw new AppError("Rating is required.", 400);
     }
-    const comment = await commentRepository.createComment(commentData);
+    const comment = await this.commentRepository.createComment(commentData);
     return comment;
   }
 
   async checkCommentExistsById(commentId) {
-    const comment = await commentRepository.getCommentByFields({
+    const comment = await this.commentRepository.getCommentByFields({
       _id: commentId,
     });
     if (!comment) {
@@ -83,20 +91,23 @@ class CommentService {
     const comment = await this.checkCommentExistsById(req.params.id);
     await this.checkCanChangeComment(comment, req.body.author);
 
-    const newComment = await commentRepository.updateComment(req.params.id, {
-      rating: req.body.rating,
-      content: req.body.content,
-    });
+    const newComment = await this.commentRepository.updateComment(
+      req.params.id,
+      {
+        rating: req.body.rating,
+        content: req.body.content,
+      }
+    );
     return newComment;
   }
 
   async getComments(req) {
-    const posts = await postService.getPosts({ userId: req.params.id });
+    const posts = await this.postService.getPosts({ userId: req.params.id });
     const postIds = posts.map((post) => post._id);
     if (postIds.length === 0) {
       throw new AppError("Posts not found.", 404);
     }
-    const comments = await commentRepository.getAllCommentsByFields({
+    const comments = await this.commentRepository.getAllCommentsByFields({
       post: { $in: postIds },
     });
     return comments;
@@ -105,7 +116,35 @@ class CommentService {
   async deleteComment(req) {
     const comment = await this.checkCommentExistsById(req.params.id);
     await this.checkCanChangeComment(comment, req.body.author);
-    await commentRepository.deleteComment(req.params.id);
+    await this.commentRepository.deleteComment(req.params.id);
+  }
+
+  //
+  async createCommentFromRoute(req, res) {
+    await this.createComment(req.body);
+    res.status(200).json({ message: "Comment created successfully." });
+  }
+
+  //
+  async updateCommentFromRoute(req, res) {
+    const newComment = await this.updateComment(req);
+    res.status(200).json(newComment);
+  }
+
+  //
+  async deleteCommentFromRoute(req, res) {
+    await this.deleteComment(req);
+    res.status(200).json({ message: "Comment deleted successfully." });
+  }
+
+  //
+  async getCommentsFromRoute(req, res) {
+    //get all the posts from that user
+    let comments = await this.getComments(req);
+
+    // Loop through comments and update profileImage URLs
+    comments = await this.getCommentsWithUserProfileImages(comments);
+    res.status(200).json(comments);
   }
 }
 

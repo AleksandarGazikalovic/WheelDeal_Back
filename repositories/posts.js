@@ -1,6 +1,10 @@
+const { Scopes } = require("dioma");
 const Post = require("../models/Post");
 
 class PostRepository {
+  // Single instance of the class for the entire application
+  static scope = Scopes.Singleton();
+
   // create post with given fields
   async createPost(postData) {
     const newPost = new Post(postData);

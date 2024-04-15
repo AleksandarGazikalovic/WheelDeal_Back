@@ -1,6 +1,10 @@
+const { Scopes } = require("dioma");
 const User = require("../models/User");
 
 class UserRepository {
+  // Single instance of the class for the entire application
+  static scope = Scopes.Singleton();
+
   // create user with given fields
   async createUser(userData) {
     const newUser = new User(userData);

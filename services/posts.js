@@ -11,6 +11,7 @@ const DateConverter = require("../modules/dateConverter");
 const UserService = require("./users");
 const PostRepository = require("../repositories/posts");
 const VehicleService = require("./vehicles");
+const { inject, Scopes } = require("dioma");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -18,12 +19,20 @@ if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.development` });
 }
 
-const dateConverter = new DateConverter();
-const postRepository = new PostRepository();
-const userService = new UserService();
-const vehicleService = new VehicleService();
-
 class PostService {
+  constructor(
+    dateConverter = inject(DateConverter),
+    postRepository = inject(PostRepository),
+    userService = inject(UserService),
+    vehicleService = inject(VehicleService)
+  ) {
+    this.dateConverter = dateConverter;
+    this.postRepository = postRepository;
+    this.userService = userService;
+    this.vehicleService = vehicleService;
+  }
+  static scope = Scopes.Singleton();
+
   async extractCityStreetFromAddress(address) {
     let searchAddress = await transliterate(address);
     let addressInfo = searchAddress.split(", ");
@@ -79,11 +88,11 @@ class PostService {
 
   //
   async getPost(postData) {
-    const post = await postRepository.getPostByFields(postData);
+    const post = await this.postRepository.getPostByFields(postData);
     if (!post) {
       throw new AppError("Post not found", 404);
     }
-    const vehicle = await vehicleService.getVehicle({
+    const vehicle = await this.vehicleService.getVehicle({
       _id: post.vehicleId,
     });
     vehicle.images = await this.getVehiclePictures(vehicle);
@@ -96,8 +105,8 @@ class PostService {
 
   //
   async getPosts(postData) {
-    const posts = await postRepository.getAllPostsByFields(postData);
-    const vehicles = await vehicleService.getAllVehiclesFromPosts(posts);
+    const posts = await this.postRepository.getAllPostsByFields(postData);
+    const vehicles = await this.vehicleService.getAllVehiclesFromPosts(posts);
 
     const updatedVehicles = await this.getAllVehiclesWithPictures(vehicles);
 
@@ -111,7 +120,7 @@ class PostService {
   }
 
   async checkPostExistsById(postId) {
-    const post = await postRepository.getPostByFields({ _id: postId });
+    const post = await this.postRepository.getPostByFields({ _id: postId });
     if (!post) {
       throw new AppError("Post not found.", 404);
     }
@@ -123,7 +132,7 @@ class PostService {
     let [searchAddress, searchStreet, searchCity] =
       await this.extractCityStreetFromAddress(req.body.location.address);
 
-    let savedPost = await postRepository.createPost({
+    let savedPost = await this.postRepository.createPost({
       ...req.body,
       userId: req.body.userId,
       vehicleId: req.body.vehicleId,
@@ -136,7 +145,7 @@ class PostService {
       },
     });
 
-    const vehicle = await vehicleService.getVehicle({
+    const vehicle = await this.vehicleService.getVehicle({
       _id: req.body.vehicleId,
     });
     // console.log(vehicle);
@@ -148,7 +157,7 @@ class PostService {
     // );
 
     // link aws uploaded pics to post
-    // savedPost = await postRepository.updatePost(savedPost.id, {
+    // savedPost = await this.postRepository.updatePost(savedPost.id, {
     //   images: imageKeys,
     // });
 
@@ -162,7 +171,9 @@ class PostService {
 
   //
   async updatePost(req) {
-    const post = await postRepository.getPostByFields({ _id: req.params.id });
+    const post = await this.postRepository.getPostByFields({
+      _id: req.params.id,
+    });
     if (post.userId.toString() === req.body.userId) {
       // let imageKeys = [];
       // // update pictures if user uploaded new images ("stomp over" the old ones)
@@ -176,11 +187,13 @@ class PostService {
       //   imageKeys = post.images;
       // }
 
-      const updatedPost = await postRepository.updatePost(req.params.id, {
+      const updatedPost = await this.postRepository.updatePost(req.params.id, {
         ...req.body,
       });
 
-      const vehicle = await vehicleService.getVehicle({ _id: post.vehicleId });
+      const vehicle = await this.vehicleService.getVehicle({
+        _id: post.vehicleId,
+      });
       vehicle.images = await this.getVehiclePictures(vehicle);
 
       const embeddedPost = {
@@ -194,28 +207,28 @@ class PostService {
   }
 
   async deletePost(postId, userId) {
-    const post = await postRepository.getPostByFields({ _id: postId });
+    const post = await this.postRepository.getPostByFields({ _id: postId });
     if (post.userId.toString() === userId) {
-      await postRepository.deletePost(post.id);
+      await this.postRepository.deletePost(post.id);
     } else {
       throw new AppError("You can only delete your post!", 403);
     }
   }
 
   async likeDislikePost(postId, userId) {
-    const post = await postRepository.getPostByFields({ _id: postId });
-    const user = await userService.getUser({ _id: userId });
+    const post = await this.postRepository.getPostByFields({ _id: postId });
+    const user = await this.userService.getUser({ _id: userId });
     if (user && post) {
       // if post wasnt previously liked, push it to liked list
       if (!user.likedPosts.includes(post._id)) {
-        user.likedPosts = await userService.updateUserLikedPosts(
+        user.likedPosts = await this.userService.updateUserLikedPosts(
           userId,
           postId,
           true
         );
       } else {
         // if post was previously liked, remove it from liked list
-        user.likedPosts = await userService.updateUserLikedPosts(
+        user.likedPosts = await this.userService.updateUserLikedPosts(
           userId,
           postId,
           false
@@ -235,7 +248,7 @@ class PostService {
   }
 
   async syncUserLikedPosts(userId) {
-    const user = await userService.getUser({ _id: userId });
+    const user = await this.userService.getUser({ _id: userId });
 
     // Filter out deleted posts from likedPosts
     const validLikedPosts = await Promise.all(
@@ -251,7 +264,7 @@ class PostService {
     );
 
     // Save the updated likedPosts array
-    const userWithValidLikedPosts = await userService.updateUser(userId, {
+    const userWithValidLikedPosts = await this.userService.updateUser(userId, {
       likedPosts: nonNullValidLikedPosts,
     });
 
@@ -287,7 +300,9 @@ class PostService {
     }
     filter.filters.push({
       $match: {
-        from: { $gte: await dateConverter.convertDateToUTC(currStartDate) },
+        from: {
+          $gte: await this.dateConverter.convertDateToUTC(currStartDate),
+        },
       },
     });
     return filter;
@@ -302,7 +317,7 @@ class PostService {
     }
     filter.filters.push({
       $match: {
-        to: { $lte: await dateConverter.convertDateToUTC(currEndDate) },
+        to: { $lte: await this.dateConverter.convertDateToUTC(currEndDate) },
       },
     });
     return filter;
@@ -379,7 +394,7 @@ class PostService {
     if (brand && brand !== "" && brand !== undefined) {
       filter.filters.push({
         $match: {
-          brand: { $regex: req.query.brand, $options: "i" },
+          brand: { $eq: brand },
         },
       });
     }
@@ -388,7 +403,7 @@ class PostService {
 
   async applyFilter(filter) {
     // let startTime = new Date();
-    const [plainPosts, hasMore] = await postRepository.performFilterSearch(
+    const [plainPosts, hasMore] = await this.postRepository.performFilterSearch(
       filter
     );
 
@@ -420,6 +435,93 @@ class PostService {
     //console.log("Execution time: " + (endTime - startTime) + " milliseconds");
   }
   // filter part end
+
+  //
+  async createPostFromRoute(req, res) {
+    let createdPost = await this.createPost(req);
+    res.status(200).json(createdPost);
+  }
+
+  //
+  async getPostFromRoute(req, res) {
+    const post = await this.getPost({
+      _id: req.params.id,
+      isArchived: false,
+    });
+    res.status(200).json(post);
+  }
+
+  //
+  async getUserPostsFromRoute(req, res) {
+    const posts = await this.getPosts({
+      userId: req.params.id,
+      isArchived: false,
+    });
+    res.status(200).json(posts);
+  }
+
+  //
+  async updatePostFromRoute(req, res) {
+    const updatedPost = await this.updatePost(req);
+    res.status(200).json(updatedPost);
+  }
+
+  //
+  async deletePostFromRoute(req, res) {
+    await this.deletePost(req.params.id, req.body.userId);
+    return res
+      .status(200)
+      .json({ message: "Post has been removed from your account!" });
+  }
+
+  //
+  async likePostFromRoute(req, res) {
+    const user = await this.likeDislikePost(req.params.id, req.body.userId);
+    res.status(200).json(user.likedPosts);
+  }
+
+  //
+  async getUserLikedPostsFromRoute(req, res) {
+    // Filter out deleted/archived posts from likedPosts
+    const user = await this.syncUserLikedPosts(req.params.id);
+
+    // fetch remaining valid posts liked by user
+    const posts = await this.getUserLikedPosts(user.likedPosts);
+    res.status(200).json(posts);
+  }
+
+  //
+  async filterPostsFromRoute(req, res) {
+    // Create an initial filter object
+    let filter = await this.initializeFilter(req);
+
+    // Step 1: Start Date Filters
+    filter = await this.updateFilterByStartDate(filter, req.query.startDate);
+
+    // Step 2: End Date Filters
+    filter = await this.updateFilterByEndDate(filter, req.query.endDate);
+
+    // Step 3: Start Price Filters
+    filter = await this.updateFilterByStartPrice(filter, req.query.startPrice);
+
+    // Step 4: End Price Filters
+    filter = await this.updateFilterByEndPrice(filter, req.body.endPrice);
+
+    // Step 5: Location Filters
+    filter = await this.updateFilterByLocation(filter, req.query.location);
+
+    // Step 6: return only non-archived posts
+    filter = await this.updateFilterByArchived(filter);
+
+    // Step 7: Add brand for search -> moved from post to vehicle
+    // filter = await this.updateFilterByBrand(filter, req.query.brand);
+
+    // apply the filter on posts
+    const [posts, hasMore] = await this.applyFilter(filter);
+    // const updatedPosts = await postService.getAllVehiclesWithPictures(posts);
+
+    res.status(200).json({ posts: posts, hasMore });
+  }
 }
 
 module.exports = PostService;

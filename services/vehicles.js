@@ -1,14 +1,11 @@
-const router = require("express").Router();
-const Vehicle = require("../models/Vehicle");
-const multer = require("multer");
 const dotenv = require("dotenv");
 const {
   uploadVehicleImagesToS3,
   getVehicleImageSignedUrlS3,
 } = require("../modules/aws_s3");
-const { verifyToken } = require("../middleware/auth");
 const VehicleRepository = require("../repositories/vehicles");
 const AppError = require("../modules/errorHandling/AppError");
+const { inject, Scopes } = require("dioma");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -17,14 +14,12 @@ if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.development` });
 }
 
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-});
-
-const vehicleRepository = new VehicleRepository();
-
 class VehicleService {
+  constructor(vehicleRepository = inject(VehicleRepository)) {
+    this.vehicleRepository = vehicleRepository;
+  }
+  static scope = Scopes.Singleton();
+
   async getVehiclePictures(vehicle) {
     // console.log(vehicle);
     // console.log(vehicle.images);
@@ -50,7 +45,9 @@ class VehicleService {
   }
 
   async createVehicle(req) {
-    let newVehicle = await vehicleRepository.createVehicle({ ...req.body });
+    let newVehicle = await this.vehicleRepository.createVehicle({
+      ...req.body,
+    });
 
     const imageKeys = await uploadVehicleImagesToS3(
       req.files,
@@ -58,7 +55,7 @@ class VehicleService {
       newVehicle.id
     );
 
-    newVehicle = await vehicleRepository.updateVehicle(newVehicle.id, {
+    newVehicle = await this.vehicleRepository.updateVehicle(newVehicle.id, {
       images: imageKeys,
       ...req.body,
     });
@@ -76,7 +73,7 @@ class VehicleService {
   }
 
   async updateVehicle(req) {
-    const vehicle = await vehicleRepository.getVehicleByFields({
+    const vehicle = await this.vehicleRepository.getVehicleByFields({
       _id: req.params.id,
     });
     if (!vehicle) {
@@ -95,7 +92,7 @@ class VehicleService {
       imageKeys = vehicle.images;
     }
 
-    const updatedVehicle = await vehicleRepository.updateVehicle(
+    const updatedVehicle = await this.vehicleRepository.updateVehicle(
       req.params.id,
       { images: imageKeys, ...req.body }
     );
@@ -104,7 +101,9 @@ class VehicleService {
   }
 
   async getVehicle(vehicleData) {
-    const vehicle = await vehicleRepository.getVehicleByFields(vehicleData);
+    const vehicle = await this.vehicleRepository.getVehicleByFields(
+      vehicleData
+    );
     if (!vehicle) {
       throw new AppError("Vehicle not found.", 404);
     }
@@ -112,7 +111,7 @@ class VehicleService {
   }
 
   async getAllUserVehicles(vehicleData) {
-    const vehicles = await vehicleRepository.getAllVehiclesByFields(
+    const vehicles = await this.vehicleRepository.getAllVehiclesByFields(
       vehicleData
     );
     if (!vehicles) {
@@ -131,7 +130,7 @@ class VehicleService {
   }
 
   async deleteVehicle(req) {
-    const vehicle = await vehicleRepository.getVehicleByFields({
+    const vehicle = await this.vehicleRepository.getVehicleByFields({
       _id: req.params.id,
     });
     if (!vehicle) {
@@ -139,7 +138,7 @@ class VehicleService {
     }
     await this.checkCanChangeVehicle(vehicle, req.body.userId);
 
-    await vehicleRepository.deleteVehicle(req.params.id);
+    await this.vehicleRepository.deleteVehicle(req.params.id);
     // TODO: delete vehicle images from s3 bucket
   }
 
@@ -152,6 +151,50 @@ class VehicleService {
         year: vehicle.year,
       };
     });
+  }
+
+  //
+  async createVehicleFromRoute(req, res) {
+    const newVehicle = await this.createVehicle(req);
+    res.status(200).json(newVehicle);
+  }
+
+  //
+  async updateVehicleFromRoute(req, res) {
+    const updatedVehicle = await this.updateVehicle(req);
+    updatedVehicle.images = await this.getVehiclePictures(updatedVehicle);
+    res.status(200).json(updatedVehicle);
+  }
+
+  // TODO: add deleting vehicle images from aws
+  async deleteVehicleFromRoute(req, res) {
+    await this.deleteVehicle(req);
+    res.status(200).json({ message: "Vehicle has been deleted!" });
+  }
+
+  //
+  async getVehicleFromRoute(req, res) {
+    const vehicle = await this.getVehicle({ _id: req.params.id });
+    vehicle.images = await this.getVehiclePictures(vehicle);
+    res.status(200).json(vehicle);
+  }
+
+  //
+  async getAllUserVehiclesWithImagesFromRoute(req, res) {
+    const vehicles = await this.getAllUserVehicles({
+      userId: req.params.id,
+    });
+    const updatedVehicles = await this.getAllVehiclesWithPictures(vehicles);
+    res.status(200).json(updatedVehicles);
+  }
+
+  //
+  async getAllUserVehiclesWithoutImagesFromRoute(req, res) {
+    const vehicles = await this.getAllUserVehicles({
+      userId: req.params.id,
+    });
+    const vehicleResource = await this.getVehiclesWithoutImages(vehicles);
+    res.status(200).json(vehicleResource);
   }
 }
 

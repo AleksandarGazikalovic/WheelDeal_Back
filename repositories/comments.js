@@ -1,6 +1,10 @@
+const { Scopes } = require("dioma");
 const Comment = require("../models/Comment");
 
 class CommentRepository {
+  // Single instance of the class for the entire application
+  static scope = Scopes.Singleton();
+
   // create comment with given fields
   async createComment(commentData) {
     const newComment = new Comment(commentData);

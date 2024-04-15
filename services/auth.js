@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const AppError = require("../modules/errorHandling/AppError");
 const MailService = require("../modules/mail/mailService");
 const UserService = require("./users");
+const { inject, Scopes } = require("dioma");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -13,12 +14,18 @@ if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.development` });
 }
 
-const userService = new UserService();
-const mailService = new MailService();
-
 class AuthService {
+  constructor(
+    userService = inject(UserService),
+    mailService = inject(MailService)
+  ) {
+    this.userService = userService;
+    this.mailService = mailService;
+  }
+  static scope = Scopes.Singleton();
+
   async checkEmailAlreadyUsed(email) {
-    const userExists = await userService.getUser({ email: email });
+    const userExists = await this.userService.getUser({ email: email });
     if (userExists) {
       throw new AppError("Email is already in use.", 400);
     }
@@ -33,7 +40,7 @@ class AuthService {
   async registerNewUser(name, surname, email, hashedPassword) {
     // create user with pending registration in database
     const verificationToken = crypto.randomBytes(20).toString("hex");
-    await userService.saveUserWithPendingRegistration(
+    await this.userService.saveUserWithPendingRegistration(
       name,
       surname,
       email,
@@ -42,7 +49,11 @@ class AuthService {
     );
 
     // send verification email
-    await mailService.sendVerificationEmail(name, email, verificationToken);
+    await this.mailService.sendVerificationEmail(
+      name,
+      email,
+      verificationToken
+    );
   }
 
   async checkUserCredentials(email, password) {
@@ -88,7 +99,7 @@ class AuthService {
   }
 
   async verifyUser(req) {
-    await userService.updateUser(req.params.id, {
+    await this.userService.updateUser(req.params.id, {
       IDCard: req.body.IDCard,
       driverLicence: req.body.driverLicence,
       phone: req.body.phone,
@@ -132,7 +143,7 @@ class AuthService {
 
     // Saving refreshToken with current user
     const newRefreshTokenField = [...newRefreshTokenArray, newRefreshToken];
-    await userService.updateUser(user.id, {
+    await this.userService.updateUser(user.id, {
       refreshToken: newRefreshTokenField,
     });
 
@@ -142,7 +153,7 @@ class AuthService {
     // get signed url for profile image after saving refreshToken in database
     const profileImage = user.profileImage;
     if (profileImage !== "") {
-      user.profileImage = await userService.getProfileImage(
+      user.profileImage = await this.userService.getProfileImage(
         profileImage,
         user.id
       );
@@ -161,7 +172,9 @@ class AuthService {
     const refreshToken = cookies.refreshToken;
 
     // Is refreshToken in db?
-    const foundUser = await userService.getUser({ refreshToken: refreshToken });
+    const foundUser = await this.userService.getUser({
+      refreshToken: refreshToken,
+    });
 
     // if not, clear the given cookie (not sure if possible?)
     if (!foundUser) {
@@ -173,7 +186,7 @@ class AuthService {
     foundUser.refreshToken = foundUser.refreshToken.filter(
       (rt) => rt !== refreshToken
     );
-    await userService.updateUser(foundUser.id, {
+    await this.userService.updateUser(foundUser.id, {
       refreshToken: foundUser.refreshToken,
     });
 
@@ -183,7 +196,7 @@ class AuthService {
   }
 
   async checkUserWithEmailExists(email) {
-    const user = await userService.getUser({ email: email });
+    const user = await this.userService.getUser({ email: email });
 
     if (!user) {
       throw new AppError("There is no user with this email address", 404);
@@ -199,17 +212,21 @@ class AuthService {
     // Save the reset token and its expiration time to the user in the database
     const resetPasswordExpires = Date.now() + 3600000; // Token expires in 1 hour
 
-    await userService.updateUser(user.id, {
+    await this.userService.updateUser(user.id, {
       resetPasswordToken: resetToken,
       resetPasswordExpires: resetPasswordExpires,
     });
 
     // Send an email to the user with the reset link
-    await mailService.sendResetPasswordEmail(user.name, user.email, resetToken);
+    await this.mailService.sendResetPasswordEmail(
+      user.name,
+      user.email,
+      resetToken
+    );
   }
 
   async findUserWithResetToken(token) {
-    const user = await userService.getUser({
+    const user = await this.userService.getUser({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() },
     });
@@ -222,7 +239,7 @@ class AuthService {
   }
 
   async findUserWithVerificationToken(token) {
-    const user = await userService.getUser({ verificationToken: token });
+    const user = await this.userService.getUser({ verificationToken: token });
 
     if (!user) {
       throw new AppError("Invalid verification token.", 404);
@@ -232,7 +249,7 @@ class AuthService {
   }
 
   async verifyUserAccount(user) {
-    await userService.updateUser(user.id, {
+    await this.userService.updateUser(user.id, {
       isAccountVerified: true,
       verificationToken: undefined,
     });
@@ -242,7 +259,7 @@ class AuthService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    await userService.updateUser(user._id.toString(), {
+    await this.userService.updateUser(user._id.toString(), {
       password: hashedPassword,
       resetPasswordToken: undefined,
       resetPasswordExpires: undefined,
@@ -258,7 +275,9 @@ class AuthService {
   }
 
   async getUserByRefreshToken(refreshToken) {
-    const foundUser = await userService.getUser({ refreshToken: refreshToken });
+    const foundUser = await this.userService.getUser({
+      refreshToken: refreshToken,
+    });
     return foundUser;
   }
 
@@ -308,7 +327,7 @@ class AuthService {
         }
 
         // stolen refresh token hasn't expired
-        await userService.updateUser(decoded.id, { refreshToken: [] });
+        await this.userService.updateUser(decoded.id, { refreshToken: [] });
         // console.log(result);
       }
     );
@@ -316,7 +335,7 @@ class AuthService {
   }
 
   async handleFaultyRefreshToken(foundUser, newRefreshTokenArray, res) {
-    const result = await userService.updateUser(foundUser._id, {
+    const result = await this.userService.updateUser(foundUser._id, {
       refreshToken: newRefreshTokenArray,
     });
 
@@ -333,7 +352,7 @@ class AuthService {
     );
     // Saving refreshToken with current user
     newRefreshTokenArray = [...newRefreshTokenArray, newRefreshToken];
-    const result = await userService.updateUser(foundUser._id, {
+    const result = await this.userService.updateUser(foundUser._id, {
       refreshToken: newRefreshTokenArray,
     });
 
@@ -375,7 +394,7 @@ class AuthService {
             async (err1, decoded1) => {
               if (err1) {
                 // refresh token has expired
-                const foundUser = await userService.getUser({
+                const foundUser = await this.userService.getUser({
                   refreshToken: refreshToken,
                 });
                 // remove expired refresh token from users' database
@@ -390,7 +409,7 @@ class AuthService {
               }
               if (decoded1) {
                 // refresh token is still valid
-                const foundUser = await userService.getUser({
+                const foundUser = await this.userService.getUser({
                   refreshToken: refreshToken,
                 });
                 if (!foundUser) {
@@ -438,6 +457,126 @@ class AuthService {
       sameSite: "None",
       secure: true,
     });
+  }
+
+  //
+  async registerUserFromRoute(req, res) {
+    // Check if the email already exists in the database
+    await this.checkEmailAlreadyUsed(req.body.email);
+
+    // generate new password
+    const hashedPassword = await this.generateHashedPassword(req.body.password);
+
+    // create new user with a verification token and send verification mail
+    await this.registerNewUser(
+      req.body.name,
+      req.body.surname,
+      req.body.email,
+      hashedPassword
+    );
+
+    res.status(200).json({
+      message: "Registration successful. Check your email for verification.",
+    });
+  }
+
+  //
+  async verifyUserFromRoute(req, res) {
+    const userHasAccess = await this.checkUserHasAccess(req);
+    if (userHasAccess) {
+      await this.verifyUser(req);
+      res.status(200).json({ message: "Account has been verified" });
+    }
+  }
+
+  //
+  async forgotPasswordFromRoute(req, res) {
+    // Find the user with the given email
+    const user = await this.checkUserWithEmailExists(req.body.email);
+
+    await this.generateResetTokenAndSendMail(user);
+    res.status(200).json({ message: "Password reset email sent successfully" });
+  }
+
+  //
+  async resetPasswordFromRoute(req, res) {
+    // Find the user with the given reset token
+    const user = await this.findUserWithResetToken(req.params.token);
+
+    // Update the user's password and clear the reset token fields
+    await this.performPasswordReset(user, req.body.newPassword);
+
+    res.status(200).json({ message: "Password reset successfully" });
+  }
+
+  //
+  async verifyTokenFromRoute(req, res) {
+    // Find the user with the verification token
+    const user = await this.findUserWithVerificationToken(req.params.token);
+
+    // Mark the user as verified and remove the verification token
+    await this.verifyUserAccount(user);
+
+    res.status(200).json({ message: "Email verified successfully." });
+  }
+
+  //
+  async loginUserFromRoute(req, res) {
+    // find user
+    let inputUser = await this.checkUserCredentials(
+      req.body.email,
+      req.body.password
+    );
+
+    // issue access and refresh tokens to logged in user
+    const [user, accessToken] = await this.issueAccessRefreshTokens(
+      inputUser,
+      req,
+      res
+    );
+
+    // send response
+    res.status(200).json({ user, accessToken });
+  }
+
+  //
+  async logoutUserFromRoute(req, res) {
+    // On client, also delete the accessToken
+    const status = await this.logoutUser(req, res);
+    return res.sendStatus(status);
+  }
+
+  // make a function that is called if access token has expired while targeting an endpoint using VerifyToken to check access token validity
+  // 1. if refresh token hasn't expired, renew both the access token and refresh token (update refresh token change in database for user)
+  // 2. if refresh token has expired, remove refresh token cookie from client and return unauthorized response
+  //
+  async handleAccessTokenExpiryFromRoute(req, res) {
+    const token = await this.getAccessToken(req);
+
+    await this.handleAccessTokenExpiry(token, req, res);
+  }
+
+  //
+  async handleRefreshTokenFromRoute(req, res) {
+    const refreshToken = await this.extractRefreshToken(req);
+    const foundUser = await this.getUserByRefreshToken(refreshToken);
+
+    // Detected refresh token reuse! - refresh token has been deleted from database earlier
+    if (!foundUser) {
+      await this.flushUserRefreshTokens(refreshToken, res);
+    }
+
+    const newRefreshTokenArray = foundUser.refreshToken.filter(
+      (rt) => rt !== refreshToken
+    );
+
+    // handle passed jwt
+    await this.handleRefreshToken(
+      foundUser,
+      refreshToken,
+      newRefreshTokenArray,
+      res
+    );
   }
 }
 
