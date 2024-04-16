@@ -251,7 +251,7 @@ class AuthService {
   async verifyUserAccount(user) {
     await this.userService.updateUser(user.id, {
       isAccountVerified: true,
-      verificationToken: undefined,
+      verificationToken: null,
     });
   }
 

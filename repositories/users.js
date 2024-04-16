@@ -20,12 +20,11 @@ class UserRepository {
 
   // find user by id and update that user with given parameters
   async updateUser(userId, userData) {
-    // updating must be done this way because if you use any update variant it will ommit "undefined" values
-    const user = await User.findOne({ _id: userId });
-    for (let field in userData) {
-      user[field] = userData[field];
-    }
-    const updatedUser = await user.save();
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      userData,
+      { new: true } // This option returns the updated document
+    );
     return updatedUser;
   }
 

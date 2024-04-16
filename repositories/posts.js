@@ -26,12 +26,11 @@ class PostRepository {
 
   // find post by id and update that post with given parameters
   async updatePost(postId, postData) {
-    // updating must be done this way because if you use any update variant it will ommit "undefined" values
-    const post = await Post.findOne({ _id: postId, isArchived: false });
-    for (let field in postData) {
-      post[field] = postData[field];
-    }
-    const updatedPost = await post.save();
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      { ...postData, isArchived: false },
+      { new: true } // This option returns the updated document
+    );
     return updatedPost;
   }
 

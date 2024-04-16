@@ -14,12 +14,11 @@ class CommentRepository {
 
   // find comment by id and update that comment with given parameters
   async updateComment(commentId, commentData) {
-    // updating must be done this way because if you use any update variant it will ommit "undefined" values
-    const comment = await Comment.findOne({ _id: commentId });
-    for (let field in commentData) {
-      comment[field] = commentData[field];
-    }
-    const updatedComment = await comment.save();
+    const updatedComment = await Comment.findByIdAndUpdate(
+      commentId,
+      commentData,
+      { new: true } // This option returns the updated document
+    );
     return updatedComment;
   }
 

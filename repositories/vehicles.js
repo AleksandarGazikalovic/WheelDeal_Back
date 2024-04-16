@@ -26,12 +26,11 @@ class VehicleRepository {
 
   // find vehicle by id and update that vehicle with given parameters
   async updateVehicle(vehicleId, vehicleData) {
-    // updating must be done this way because if you use any update variant it will ommit "undefined" values
-    const vehicle = await Vehicle.findOne({ _id: vehicleId });
-    for (let field in vehicleData) {
-      vehicle[field] = vehicleData[field];
-    }
-    const updatedVehicle = await vehicle.save();
+    const updatedVehicle = await Vehicle.findByIdAndUpdate(
+      vehicleId,
+      vehicleData,
+      { new: true } // This option returns the updated document
+    );
     return updatedVehicle;
   }
 
