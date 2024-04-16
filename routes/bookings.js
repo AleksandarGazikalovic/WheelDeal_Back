@@ -1,9 +1,11 @@
 const router = require("express").Router();
 
+const { inject } = require("dioma");
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
+const BookingService = require("../services/bookings");
 
-function createBookingRoutes(bookingService) {
+function createBookingRoutes(bookingService = inject(BookingService)) {
   // Create a booking
   router.post(
     "/",

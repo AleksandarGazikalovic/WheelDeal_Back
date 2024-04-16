@@ -3,13 +3,15 @@ const multer = require("multer");
 
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
+const { inject } = require("dioma");
+const VehicleService = require("../services/vehicles");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function createVehicleRoutes(vehicleService) {
+function createVehicleRoutes(vehicleService = inject(VehicleService)) {
   //create a vehicle
   router.post(
     "/",

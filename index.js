@@ -4,7 +4,6 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const { services } = require("./services/index");
 const { createAuthRoutes } = require("./routes/auth");
 const { createUserRoutes } = require("./routes/users");
 const { createPostRoutes } = require("./routes/posts");
@@ -65,12 +64,12 @@ app.use(
 );
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/api/auth", createAuthRoutes(services.authService));
-app.use("/api/posts", createPostRoutes(services.postService));
-app.use("/api/users", createUserRoutes(services.userService));
-app.use("/api/vehicles", createVehicleRoutes(services.vehicleService));
-app.use("/api/comments", createCommentRoutes(services.commentService));
-app.use("/api/bookings", createBookingRoutes(services.bookingService));
+app.use("/api/auth", createAuthRoutes());
+app.use("/api/posts", createPostRoutes());
+app.use("/api/users", createUserRoutes());
+app.use("/api/vehicles", createVehicleRoutes());
+app.use("/api/comments", createCommentRoutes());
+app.use("/api/bookings", createBookingRoutes());
 
 app.use(errorHandler);
 

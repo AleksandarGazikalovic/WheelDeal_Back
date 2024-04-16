@@ -3,13 +3,15 @@ const multer = require("multer");
 
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
+const { inject } = require("dioma");
+const PostService = require("../services/posts");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function createPostRoutes(postService) {
+function createPostRoutes(postService = inject(PostService)) {
   //create a post
   router.post(
     "/",

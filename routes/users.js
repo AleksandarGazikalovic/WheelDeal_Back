@@ -3,13 +3,15 @@ const multer = require("multer");
 
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
+const { inject } = require("dioma");
+const UserService = require("../services/users");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function createUserRoutes(userService) {
+function createUserRoutes(userService = inject(UserService)) {
   //update user
   router.put(
     "/:id",
