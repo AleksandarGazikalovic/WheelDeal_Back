@@ -46,7 +46,7 @@ async function getProfileImageSignedUrlS3(profileImage, userId) {
   return signedUrl;
 }
 
-async function getVehicleImageSignedUrlS3(profileImage, userId, vehicleId) {
+async function getVehicleImageSignedUrlS3(image, userId, vehicleId) {
   const command = new GetObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
     Key:
@@ -58,7 +58,7 @@ async function getVehicleImageSignedUrlS3(profileImage, userId, vehicleId) {
       "Vehicle_" +
       vehicleId +
       "/" +
-      profileImage,
+      image,
   });
 
   const signedUrl = await getSignedUrl(s3, command, {
@@ -68,13 +68,7 @@ async function getVehicleImageSignedUrlS3(profileImage, userId, vehicleId) {
   return signedUrl;
 }
 
-const getDocumentSignedUrlS3 = async (
-  file,
-  userId,
-  type,
-  vehicleId,
-  documentId
-) => {
+const getDocumentSignedUrlS3 = async (userId, vehicleId, imageName, type) => {
   const command = new GetObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,
     Key:
@@ -86,9 +80,9 @@ const getDocumentSignedUrlS3 = async (
       "Vehicle_" +
       vehicleId +
       "/" +
-      type +
+      imageName +
       "_" +
-      documentId,
+      type,
   });
 
   const signedUrl = await getSignedUrl(s3, command, {
@@ -133,16 +127,10 @@ const uploadVehicleImagesToS3 = async (files, userId, vehicleId) => {
   return imageKeys;
 };
 
-const uploadDocumentToS3 = async (
-  file,
-  userId,
-  type,
-  vehicleId,
-  documentId
-) => {
-  const imageKeys = [];
+const uploadDocumentToS3 = async (file, userId, vehicleId, type) => {
   const imageName = randomImageName();
   const fileContent = file.buffer;
+  const fileType = pictureFormat;
 
   const uploadParams = {
     Bucket: process.env.S3_BUCKET_NAME,
@@ -156,20 +144,16 @@ const uploadDocumentToS3 = async (
       "Vehicle_" +
       vehicleId +
       "/" +
-      type +
+      imageName +
       "_" +
-      documentId +
-      "/" +
-      imageName,
-    ContentType: file.mimetype,
+      type,
+    ContentType: fileType,
   };
 
   const command = new PutObjectCommand(uploadParams);
   await s3.send(command);
 
-  imageKeys.push(imageName);
-
-  return imageKeys;
+  return imageName;
 };
 
 async function uploadProfileImageToS3(file, fileName, userId) {
@@ -239,11 +223,34 @@ async function deleteVehicleImagesFromS3(userId, vehicleId) {
   }
 }
 
+async function deleteDocumentFromS3(userId, vehicleId, imageName, type) {
+  const deleteCommand = new DeleteObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key:
+      rootBucketFolder +
+      "/" +
+      "User_" +
+      userId +
+      "/" +
+      "Vehicle_" +
+      vehicleId +
+      "/" +
+      imageName +
+      "_" +
+      type,
+  });
+
+  s3.send(deleteCommand);
+}
+
 module.exports = {
   getProfileImageSignedUrlS3,
   getVehicleImageSignedUrlS3,
+  getDocumentSignedUrlS3,
   uploadProfileImageToS3,
   uploadVehicleImagesToS3,
+  uploadDocumentToS3,
   deleteProfileImageFromS3,
   deleteVehicleImagesFromS3,
+  deleteDocumentFromS3,
 };

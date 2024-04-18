@@ -73,10 +73,6 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isLicenceVerified: {
-      type: Boolean,
-      default: false,
-    },
     resetPasswordToken: {
       type: String,
       default: null,
@@ -87,10 +83,9 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
 
-    refreshToken: [String]
+    refreshToken: [String],
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("User", UserSchema);
- 

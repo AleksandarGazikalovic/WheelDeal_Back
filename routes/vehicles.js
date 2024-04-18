@@ -187,11 +187,12 @@ router.get("/profile/:id", async (req, res) => {
   }
 });
 
-//get user vehicles
+//get user vehicles names
 router.get("/user/:id", async (req, res) => {
   try {
     const vehicles = await Vehicle.find({
       userId: req.params.id,
+      isVerified: true,
     });
     const vehicleResource = vehicles.map((vehicle) => {
       return {

@@ -9,15 +9,17 @@ const documentSchema = new mongoose.Schema({
   vehicleId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Vehicle",
+    required: true,
   },
   type: {
     type: String,
     enum: [
-      "driversLicense",
-      "vehicleRegistration",
-      "vehicleInsurance",
       "idCard",
+      "vehicleLicense",
+      "registrationExpiry",
+      "vehicleInsurance",
     ],
+    required: true,
   },
   startDate: {
     type: Date,
@@ -25,7 +27,7 @@ const documentSchema = new mongoose.Schema({
   endDate: {
     type: Date,
   },
-  file: {
+  image: {
     type: String,
   },
   verified: {

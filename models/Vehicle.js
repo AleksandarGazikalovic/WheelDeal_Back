@@ -49,6 +49,10 @@ const VehicleSchema = new mongoose.Schema(
     documents: {
       type: Array,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
