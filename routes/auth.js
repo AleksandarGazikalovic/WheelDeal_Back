@@ -411,32 +411,6 @@ router.post("/logout", async (req, res) => {
   return res.sendStatus(204);
 });
 
-//verify user
-router.put("/:id/verify", verifyToken, async (req, res) => {
-  if (req.body.userId === req.params.id || req.body.isAdmin) {
-    try {
-      const user = await User.findByIdAndUpdate(req.params.id, {
-        $set: {
-          IDCard: req.body.IDCard,
-          driverLicense: req.body.driverLicense,
-          phone: req.body.phone,
-          address: req.body.address,
-          city: req.body.city,
-          isLicenceVerified: true,
-        },
-      });
-      res.status(200).json({ message: "Account has been verified" });
-    } catch (err) {
-      console.log(err);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
-  } else {
-    return res
-      .status(403)
-      .json({ message: "You can verify only your account!" });
-  }
-});
-
 // Route for initiating the forgot password process
 router.post("/forgot-password", async (req, res) => {
   try {
