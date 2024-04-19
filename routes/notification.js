@@ -25,7 +25,7 @@ router.get("/:id", async (req, res) => {
       ],
     });
 
-    res.status(200).json({ allNotifications });
+    res.status(200).json(allNotifications);
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });
