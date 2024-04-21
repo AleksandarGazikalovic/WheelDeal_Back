@@ -88,7 +88,8 @@ router.post("/", verifyToken, async (req, res) => {
 router.put("/:id", verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (post.userId === req.body.userId) {
+
+    if (post.userId.toString() === req.body.userId) {
       const vehicle = await Vehicle.findById(post.vehicleId);
 
       const updatedPost = await Post.findByIdAndUpdate(
@@ -131,7 +132,7 @@ router.put("/:id", verifyToken, async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (post.userId === req.body.userId) {
+    if (post.userId.toString() === req.body.userId) {
       try {
         //await Post.findByIdAndDelete(req.params.id);
         await Post.findByIdAndUpdate(post.id, {
@@ -212,6 +213,24 @@ router.get("/:id", async (req, res) => {
       vehicle: vehicle,
     };
     res.status(200).json(embeddedPost);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+//get post by vehicle id
+router.get("/vehicle/:id", async (req, res) => {
+  try {
+    const post = await Post.findOne({
+      vehicleId: req.params.id,
+      isArchived: false,
+    });
+    if (post === null) {
+      return res.status(204).json({ message: "Post can't be found" });
+    }
+
+    res.status(200).json(post);
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Internal Server Error" });
