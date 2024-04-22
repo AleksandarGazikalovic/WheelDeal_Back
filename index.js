@@ -4,13 +4,18 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const userRoute = require("./routes/users");
-const authRoute = require("./routes/auth");
-const postRoute = require("./routes/posts");
-const vehicleRoute = require("./routes/vehicles");
-const commentRoute = require("./routes/comments");
-const bookingRoute = require("./routes/bookings");
+
+const repositoryInitializer = require("./repositories/repositoryInitializer");
+const serviceInitializer = require("./services/serviceInitializer");
+
+const { createAuthRoutes } = require("./routes/auth");
+const { createUserRoutes } = require("./routes/users");
+const { createPostRoutes } = require("./routes/posts");
+const { createVehicleRoutes } = require("./routes/vehicles");
+const { createCommentRoutes } = require("./routes/comments");
+const { createBookingRoutes } = require("./routes/bookings");
 const notificationRoute = require("./routes/notification");
+
 const cors = require("cors");
 const path = require("path");
 const https = require("https");
@@ -20,6 +25,7 @@ const morganBody = require("morgan-body");
 const cookieParser = require("cookie-parser");
 const scheduler = require("./modules/scheduler/index");
 const Post = require("./models/Post");
+const errorHandler = require("./middleware/errorHandler");
 
 // dotenv.config();
 //MongoDB Connection, to prod or dev database
@@ -64,13 +70,15 @@ app.use(
 );
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/api/users", userRoute);
-app.use("/api/auth", authRoute);
-app.use("/api/posts", postRoute);
-app.use("/api/vehicles", vehicleRoute);
-app.use("/api/comments", commentRoute);
-app.use("/api/bookings", bookingRoute);
+app.use("/api/auth", createAuthRoutes());
+app.use("/api/posts", createPostRoutes());
+app.use("/api/users", createUserRoutes());
+app.use("/api/vehicles", createVehicleRoutes());
+app.use("/api/comments", createCommentRoutes());
+app.use("/api/bookings", createBookingRoutes());
 app.use("/api/notification", notificationRoute);
+
+app.use(errorHandler);
 
 // Check if the environment is production
 if (process.env.NODE_ENV === "production") {
