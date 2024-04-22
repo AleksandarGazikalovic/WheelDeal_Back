@@ -1,11 +1,11 @@
 const router = require("express").Router();
-
-const { inject } = require("dioma");
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const AuthService = require("../services/auth");
+const dependencyContainer = require("../modules/dependencyContainer");
 
-function createAuthRoutes(authService = inject(AuthService)) {
+function createAuthRoutes(
+  authService = dependencyContainer.getDependency("authService")
+) {
   // in case access token expires while user is performing an action on site (that requires access token)
   router.get(
     "/handleAccessTokenExpiry",

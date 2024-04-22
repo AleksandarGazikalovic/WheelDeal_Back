@@ -1,9 +1,10 @@
-const { Scopes } = require("dioma");
 const Vehicle = require("../models/Vehicle");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 class VehicleRepository {
-  // Single instance of the class for the entire application
-  static scope = Scopes.Singleton();
+  constructor() {
+    dependencyContainer.register("vehicleRepository", this);
+  }
 
   // find vehicle using any fields and their values
   async getVehicleByFields(searchData) {

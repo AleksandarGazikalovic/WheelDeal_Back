@@ -1,9 +1,9 @@
 const cron = require("node-cron");
 const Post = require("../../models/Post");
 const { deletePostImagesFromS3 } = require("../aws_s3");
-const DateConverter = require("../dateConverter");
+const dependencyContainer = require("../../modules/dependencyContainer");
 
-const dateConverter = new DateConverter();
+const dateConverter = dependencyContainer.getDependency("dateConverter");
 
 // description: DELETE POST FROM MONGO AND POST IMAGES FROM S3 BUCKET FOR ARCHIVED POSTS
 // target group: posts that have been archived for 4 weeks

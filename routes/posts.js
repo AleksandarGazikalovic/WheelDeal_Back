@@ -1,17 +1,17 @@
 const router = require("express").Router();
 const multer = require("multer");
-
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const { inject } = require("dioma");
-const PostService = require("../services/posts");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function createPostRoutes(postService = inject(PostService)) {
+function createPostRoutes(
+  postService = dependencyContainer.getDependency("postService")
+) {
   //create a post
   router.post(
     "/",

@@ -1,9 +1,10 @@
 const Booking = require("../models/Booking");
-const { Scopes } = require("dioma");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 class BookingRepository {
-  // Single instance of the class for the entire application
-  static scope = Scopes.Singleton();
+  constructor() {
+    dependencyContainer.register("bookingRepository", this);
+  }
 
   // create booking with given fields
   async createBooking(bookingData) {

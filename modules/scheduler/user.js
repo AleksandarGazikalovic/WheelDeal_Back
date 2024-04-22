@@ -1,8 +1,8 @@
 const cron = require("node-cron");
 const User = require("../../models/User");
-const DateConverter = require("../dateConverter");
+const dependencyContainer = require("../../modules/dependencyContainer");
 
-const dateConverter = new DateConverter();
+const dateConverter = dependencyContainer.getDependency("dateConverter");
 
 // description: delete users who haven't competed verification
 // target group: user made an account but hasn't verified email address in 4 weeks

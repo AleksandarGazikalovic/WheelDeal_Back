@@ -4,9 +4,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const AppError = require("../modules/errorHandling/AppError");
-const MailService = require("../modules/mail/mailService");
-const UserService = require("./users");
-const { inject, Scopes } = require("dioma");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -16,13 +14,14 @@ if (process.env.NODE_ENV === "production") {
 
 class AuthService {
   constructor(
-    userService = inject(UserService),
-    mailService = inject(MailService)
+    userService = dependencyContainer.getDependency("userService"),
+    mailService = dependencyContainer.getDependency("mailService")
   ) {
+    // console.log("Initializing auth service...");
     this.userService = userService;
     this.mailService = mailService;
+    dependencyContainer.register("authService", this);
   }
-  static scope = Scopes.Singleton();
 
   async checkEmailAlreadyUsed(email) {
     const userExists = await this.userService.getUser({ email: email });

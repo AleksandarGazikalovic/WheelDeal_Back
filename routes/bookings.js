@@ -1,11 +1,11 @@
 const router = require("express").Router();
-
-const { inject } = require("dioma");
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const BookingService = require("../services/bookings");
+const dependencyContainer = require("../modules/dependencyContainer");
 
-function createBookingRoutes(bookingService = inject(BookingService)) {
+function createBookingRoutes(
+  bookingService = dependencyContainer.getDependency("bookingService")
+) {
   // Create a booking
   router.post(
     "/",

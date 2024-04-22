@@ -1,17 +1,17 @@
 const router = require("express").Router();
 const multer = require("multer");
-
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const { inject } = require("dioma");
-const UserService = require("../services/users");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function createUserRoutes(userService = inject(UserService)) {
+function createUserRoutes(
+  userService = dependencyContainer.getDependency("userService")
+) {
   //update user
   router.put(
     "/:id",

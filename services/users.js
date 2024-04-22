@@ -7,8 +7,7 @@ const {
   uploadProfileImageToS3,
 } = require("../modules/aws_s3");
 const AppError = require("../modules/errorHandling/AppError");
-const UserRepository = require("../repositories/users");
-const { inject, Scopes } = require("dioma");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -20,10 +19,13 @@ const randomImageName = (bytes = 32) =>
   crypto.randomBytes(bytes).toString("hex");
 
 class UserService {
-  constructor(userRepository = inject(UserRepository)) {
+  constructor(
+    userRepository = dependencyContainer.getDependency("userRepository")
+  ) {
+    // console.log("Initializing user service...");
     this.userRepository = userRepository;
+    dependencyContainer.register("userService", this);
   }
-  static scope = Scopes.Singleton();
 
   async getUser(userData) {
     const user = await this.userRepository.getUserByFields(userData);

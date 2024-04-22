@@ -1,9 +1,10 @@
-const { Scopes } = require("dioma");
 const Comment = require("../models/Comment");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 class CommentRepository {
-  // Single instance of the class for the entire application
-  static scope = Scopes.Singleton();
+  constructor() {
+    dependencyContainer.register("commentRepository", this);
+  }
 
   // create comment with given fields
   async createComment(commentData) {

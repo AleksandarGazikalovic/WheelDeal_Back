@@ -1,13 +1,8 @@
-const Comment = require("../models/Comment");
-const User = require("../models/User");
-const Post = require("../models/Post");
 const dotenv = require("dotenv");
 const { getProfileImageSignedUrlS3 } = require("../modules/aws_s3");
+
 const AppError = require("../modules/errorHandling/AppError");
-const CommentRepository = require("../repositories/comments");
-const UserService = require("./users");
-const PostService = require("./posts");
-const { inject, Scopes } = require("dioma");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -17,15 +12,16 @@ if (process.env.NODE_ENV === "production") {
 
 class CommentService {
   constructor(
-    commentRepository = inject(CommentRepository),
-    userService = inject(UserService),
-    postService = inject(PostService)
+    commentRepository = dependencyContainer.getDependency("commentRepository"),
+    userService = dependencyContainer.getDependency("userService"),
+    postService = dependencyContainer.getDependency("postService")
   ) {
+    // console.log("Initializing comment service...");
     this.commentRepository = commentRepository;
     this.userService = userService;
     this.postService = postService;
+    dependencyContainer.register("commentService", this);
   }
-  static scope = Scopes.Singleton();
 
   async getCommentsWithUserProfileImages(comments) {
     for (const comment of comments) {

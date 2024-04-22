@@ -1,17 +1,16 @@
-const { Scopes, inject } = require("dioma");
 const AppError = require("../modules/errorHandling/AppError");
-const BookingRepository = require("../repositories/bookings");
-const PostService = require("./posts");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 class BookingService {
   constructor(
-    postService = inject(PostService),
-    bookingRepository = inject(BookingRepository)
+    bookingRepository = dependencyContainer.getDependency("bookingRepository"),
+    postService = dependencyContainer.getDependency("postService")
   ) {
-    this.postService = postService;
+    // console.log("Initializing booking service...");
     this.bookingRepository = bookingRepository;
+    this.postService = postService;
+    dependencyContainer.register("bookingService", this);
   }
-  static scope = Scopes.Singleton();
 
   async getBooking(bookingData) {
     const booking = await this.bookingRepository.getBookingByFields(

@@ -3,9 +3,9 @@ const {
   uploadVehicleImagesToS3,
   getVehicleImageSignedUrlS3,
 } = require("../modules/aws_s3");
-const VehicleRepository = require("../repositories/vehicles");
+
 const AppError = require("../modules/errorHandling/AppError");
-const { inject, Scopes } = require("dioma");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 // dotenv.config();
 if (process.env.NODE_ENV === "production") {
@@ -15,10 +15,13 @@ if (process.env.NODE_ENV === "production") {
 }
 
 class VehicleService {
-  constructor(vehicleRepository = inject(VehicleRepository)) {
+  constructor(
+    vehicleRepository = dependencyContainer.getDependency("vehicleRepository")
+  ) {
+    // console.log("Initializing vehicle service...");
     this.vehicleRepository = vehicleRepository;
+    dependencyContainer.register("vehicleService", this);
   }
-  static scope = Scopes.Singleton();
 
   async getVehiclePictures(vehicle) {
     // console.log(vehicle);

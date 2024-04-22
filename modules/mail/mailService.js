@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
-const { Scopes } = require("dioma");
+const dependencyContainer = require("../dependencyContainer");
 const logoPath = "./public/images/logo.png";
 
 if (process.env.NODE_ENV === "production") {
@@ -19,7 +19,10 @@ const transporter = nodemailer.createTransport({
 
 class MailService {
   // Single instance of the class for the entire application
-  static scope = Scopes.Singleton();
+  constructor() {
+    // console.log("Initializing mail service...");
+    dependencyContainer.register("mailService", this);
+  }
 
   // Function to send verification email
   async sendVerificationEmail(name, email, token) {

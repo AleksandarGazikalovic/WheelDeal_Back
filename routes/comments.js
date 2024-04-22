@@ -1,11 +1,11 @@
 const router = require("express").Router();
-
-const { inject } = require("dioma");
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const CommentService = require("../services/comments");
+const dependencyContainer = require("../modules/dependencyContainer");
 
-function createCommentRoutes(commentService = inject(CommentService)) {
+function createCommentRoutes(
+  commentService = dependencyContainer.getDependency("commentService")
+) {
   // Create a comment
   router.post(
     "/",

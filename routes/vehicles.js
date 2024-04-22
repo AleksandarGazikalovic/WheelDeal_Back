@@ -1,17 +1,17 @@
 const router = require("express").Router();
 const multer = require("multer");
-
 const { verifyToken } = require("../middleware/auth");
 const { tryCatch } = require("../modules/errorHandling/tryCatch");
-const { inject } = require("dioma");
-const VehicleService = require("../services/vehicles");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function createVehicleRoutes(vehicleService = inject(VehicleService)) {
+function createVehicleRoutes(
+  vehicleService = dependencyContainer.getDependency("vehicleService")
+) {
   //create a vehicle
   router.post(
     "/",

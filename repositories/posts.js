@@ -1,9 +1,10 @@
-const { Scopes } = require("dioma");
 const Post = require("../models/Post");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 class PostRepository {
-  // Single instance of the class for the entire application
-  static scope = Scopes.Singleton();
+  constructor() {
+    dependencyContainer.register("postRepository", this);
+  }
 
   // create post with given fields
   async createPost(postData) {

@@ -4,12 +4,17 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
 const morgan = require("morgan");
+
+const repositoryInitializer = require("./repositories/repositoryInitializer");
+const serviceInitializer = require("./services/serviceInitializer");
+
 const { createAuthRoutes } = require("./routes/auth");
 const { createUserRoutes } = require("./routes/users");
 const { createPostRoutes } = require("./routes/posts");
 const { createVehicleRoutes } = require("./routes/vehicles");
 const { createCommentRoutes } = require("./routes/comments");
 const { createBookingRoutes } = require("./routes/bookings");
+
 const cors = require("cors");
 const path = require("path");
 const https = require("https");

@@ -1,17 +1,8 @@
 const dotenv = require("dotenv");
-
-const {
-  uploadPostImagesToS3,
-  getPostImageSignedUrlS3,
-  getVehicleImageSignedUrlS3,
-} = require("../modules/aws_s3");
+const { getVehicleImageSignedUrlS3 } = require("../modules/aws_s3");
 const { transliterate } = require("../modules/transliteration");
 const AppError = require("../modules/errorHandling/AppError");
-const DateConverter = require("../modules/dateConverter");
-const UserService = require("./users");
-const PostRepository = require("../repositories/posts");
-const VehicleService = require("./vehicles");
-const { inject, Scopes } = require("dioma");
+const dependencyContainer = require("../modules/dependencyContainer");
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: `.env.production` });
@@ -21,17 +12,18 @@ if (process.env.NODE_ENV === "production") {
 
 class PostService {
   constructor(
-    dateConverter = inject(DateConverter),
-    postRepository = inject(PostRepository),
-    userService = inject(UserService),
-    vehicleService = inject(VehicleService)
+    postRepository = dependencyContainer.getDependency("postRepository"),
+    dateConverter = dependencyContainer.getDependency("dateConverter"),
+    userService = dependencyContainer.getDependency("userService"),
+    vehicleService = dependencyContainer.getDependency("vehicleService")
   ) {
-    this.dateConverter = dateConverter;
+    // console.log("Initializing post service...");
     this.postRepository = postRepository;
+    this.dateConverter = dateConverter;
     this.userService = userService;
     this.vehicleService = vehicleService;
+    dependencyContainer.register("postService", this);
   }
-  static scope = Scopes.Singleton();
 
   async extractCityStreetFromAddress(address) {
     let searchAddress = await transliterate(address);
