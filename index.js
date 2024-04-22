@@ -14,6 +14,7 @@ const { createPostRoutes } = require("./routes/posts");
 const { createVehicleRoutes } = require("./routes/vehicles");
 const { createCommentRoutes } = require("./routes/comments");
 const { createBookingRoutes } = require("./routes/bookings");
+const notificationRoute = require("./routes/notification");
 
 const cors = require("cors");
 const path = require("path");
@@ -75,6 +76,7 @@ app.use("/api/users", createUserRoutes());
 app.use("/api/vehicles", createVehicleRoutes());
 app.use("/api/comments", createCommentRoutes());
 app.use("/api/bookings", createBookingRoutes());
+app.use("/api/notification", notificationRoute);
 
 app.use(errorHandler);
 

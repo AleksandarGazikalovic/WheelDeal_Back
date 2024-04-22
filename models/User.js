@@ -35,6 +35,10 @@ const UserSchema = new mongoose.Schema(
       min: 9,
       max: 9,
     },
+    driverLicenseExpiredDate: {
+      type: Date,
+      default: null,
+    },
     phone: {
       type: String,
       min: 9,
@@ -87,10 +91,9 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
 
-    refreshToken: [String]
+    refreshToken: [String],
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model("User", UserSchema);
- 
